@@ -6,9 +6,9 @@ import (
 	"log"
 	"sync"
 
-	"github.com/bettercap/gatt/linux/cmd"
-	"github.com/bettercap/gatt/linux/evt"
-	"github.com/bettercap/gatt/linux/util"
+	"github.com/grutz/gatt/linux/cmd"
+	"github.com/grutz/gatt/linux/evt"
+	"github.com/grutz/gatt/linux/util"
 	"golang.org/x/sys/unix"
 )
 
@@ -46,6 +46,8 @@ type PlatData struct {
 	Address     [6]byte
 	Data        []byte
 	Connectable bool
+	EventType   uint8
+	Scannable   bool
 	RSSI        int8
 
 	Conn io.ReadWriteCloser
@@ -261,13 +263,7 @@ func (h *HCI) resetDevice() error {
 			HostSynchronousDataPacketLength:    0xff,
 			HostTotalNumACLDataPackets:         0x0014,
 			HostTotalNumSynchronousDataPackets: 0x000a},
-		cmd.LESetScanParameters{
-			LEScanType:           0x01,   // [0x00]: passive, 0x01: active
-			LEScanInterval:       0x0010, // [0x10]: 0.625ms * 16
-			LEScanWindow:         0x0010, // [0x10]: 0.625ms * 16
-			OwnAddressType:       0x00,   // [0x00]: public, 0x01: random
-			ScanningFilterPolicy: 0x00,   // [0x00]: accept all, 0x01: ignore non-white-listed.
-		},
+		*cmd.NewLESetScanParameters(),
 	}
 	for _, s := range seq {
 		if err := h.c.SendAndCheckResp(s, []byte{0x00}); err != nil {
@@ -289,10 +285,10 @@ func (h *HCI) handleAdvertisement(b []byte) {
 	for i := 0; i < int(ep.NumReports); i++ {
 		addr := bdaddr(ep.Address[i])
 		et := ep.EventType[i]
-		connectable := et == advInd || et == advDirectInd
-		scannable := et == advInd || et == advScanInd
+		connectable := et == AdvInd || et == AdvDirectInd
+		scannable := et == AdvInd || et == AdvScanInd
 
-		if et == scanRsp {
+		if et == ScanRsp {
 			h.plistmu.Lock()
 			pd, ok := h.plist[addr]
 			h.plistmu.Unlock()
@@ -307,15 +303,14 @@ func (h *HCI) handleAdvertisement(b []byte) {
 			AddressType: ep.AddressType[i],
 			Address:     ep.Address[i],
 			Data:        ep.Data[i],
+			EventType:   et,
 			Connectable: connectable,
+			Scannable:   scannable,
 			RSSI:        ep.RSSI[i],
 		}
 		h.plistmu.Lock()
 		h.plist[addr] = pd
 		h.plistmu.Unlock()
-		if scannable {
-			continue
-		}
 		h.AdvertisementHandler(pd)
 	}
 }

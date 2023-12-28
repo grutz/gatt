@@ -7,8 +7,8 @@ import (
 	"io"
 	"log"
 
-	"github.com/bettercap/gatt/linux/evt"
-	"github.com/bettercap/gatt/linux/util"
+	"github.com/grutz/gatt/linux/evt"
+	"github.com/grutz/gatt/linux/util"
 )
 
 type CmdParam interface {
@@ -140,9 +140,9 @@ const (
 	hostCtl     = 0x03
 	infoParam   = 0x04
 	statusParam = 0x05
-	testingCmd  = 0X3E
+	testingCmd  = 0x3E
 	leCtl       = 0x08
-	vendorCmd   = 0X3F
+	vendorCmd   = 0x3F
 )
 
 const (
@@ -636,18 +636,36 @@ func (c LESetAdvertiseEnable) Marshal(b []byte) { b[0] = c.AdvertisingEnable }
 type LESetAdvertiseEnableRP struct{ Status uint8 }
 
 // LE Set Scan Parameters (0x000B)
+type LEScanType uint8
 type LESetScanParameters struct {
-	LEScanType           uint8
+	LEScanType           LEScanType
 	LEScanInterval       uint16
 	LEScanWindow         uint16
 	OwnAddressType       uint8
 	ScanningFilterPolicy uint8
 }
 
+const (
+	// LEScanTypeActive [0x01]: active scan
+	LEScanTypeActive LEScanType = 0x01
+	// LEScanTypePassive [0x00]: passive scan
+	LEScanTypePassive LEScanType = 0x00
+)
+
+func NewLESetScanParameters() *LESetScanParameters {
+	return &LESetScanParameters{
+		LEScanType:           LEScanTypeActive, // [0x00]: passive, 0x01: active
+		LEScanInterval:       0x0010,           // [0x10]: 0.625ms * 16
+		LEScanWindow:         0x0010,           // [0x10]: 0.625ms * 16
+		OwnAddressType:       0x00,             // [0x00]: public, 0x01: random
+		ScanningFilterPolicy: 0x00,             // [0x00]: accept all, 0x01: ignore non-white-listed.
+	}
+}
+
 func (c LESetScanParameters) Opcode() int { return opLESetScanParameters }
 func (c LESetScanParameters) Len() int    { return 7 }
 func (c LESetScanParameters) Marshal(b []byte) {
-	o.PutUint8(b[0:], c.LEScanType)
+	o.PutUint8(b[0:], uint8(c.LEScanType))
 	o.PutUint16(b[1:], c.LEScanInterval)
 	o.PutUint16(b[3:], c.LEScanWindow)
 	o.PutUint8(b[5:], c.OwnAddressType)

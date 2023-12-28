@@ -7,8 +7,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/bettercap/gatt/linux/gioctl"
-	"github.com/bettercap/gatt/linux/socket"
+	"github.com/grutz/gatt/linux/gioctl"
+	"github.com/grutz/gatt/linux/socket"
 	"golang.org/x/sys/unix"
 )
 
@@ -37,6 +37,9 @@ func newDevice(n int, chk bool) (*device, error) {
 		return nil, err
 	}
 	log.Printf("got %d devices", req.devNum)
+	if req.devNum == 0 {
+		return nil, errors.New("no devices available")
+	}
 	for i := 0; i < int(req.devNum); i++ {
 		d, err := newSocket(fd, i, chk)
 		if err == nil {
@@ -55,7 +58,7 @@ func newSocket(fd, n int, chk bool) (*device, error) {
 		log.Printf("hciGetDeviceInfo failed")
 		return nil, err
 	}
-	name := string(i.name[:])
+	name := i.name.String()
 	// Check the feature list returned feature list.
 	if chk && i.features[4]&0x40 == 0 {
 		err := errors.New("does not support LE")

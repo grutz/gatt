@@ -1,4 +1,5 @@
-// +build
+//go:build ignore
+// +build ignore
 
 package main
 
@@ -6,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/bettercap/gatt"
-	"github.com/bettercap/gatt/examples/option"
-	"github.com/bettercap/gatt/examples/service"
+	"github.com/grutz/gatt"
+	"github.com/grutz/gatt/examples/option"
+	"github.com/grutz/gatt/examples/service"
 )
 
 func main() {

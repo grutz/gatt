@@ -2,10 +2,11 @@ package gatt
 
 import (
 	"encoding/binary"
+	"log"
 	"net"
 
-	"github.com/bettercap/gatt/linux"
-	"github.com/bettercap/gatt/linux/cmd"
+	"github.com/grutz/gatt/linux"
+	"github.com/grutz/gatt/linux/cmd"
 )
 
 type device struct {
@@ -38,19 +39,13 @@ func NewDevice(opts ...Option) (Device, error) {
 			AdvertisingIntervalMin:  0x800,     // [0x0800]: 0.625 ms * 0x0800 = 1280.0 ms
 			AdvertisingIntervalMax:  0x800,     // [0x0800]: 0.625 ms * 0x0800 = 1280.0 ms
 			AdvertisingType:         0x00,      // [0x00]: ADV_IND, 0x01: DIRECT(HIGH), 0x02: SCAN, 0x03: NONCONN, 0x04: DIRECT(LOW)
-			OwnAddressType:          0x00,      // [0x00]: public, 0x01: random
-			DirectAddressType:       0x00,      // [0x00]: public, 0x01: random
+			OwnAddressType:          0x01,      // [0x00]: public, 0x01: random
+			DirectAddressType:       0x01,      // [0x00]: public, 0x01: random
 			DirectAddress:           [6]byte{}, // Public or Random Address of the device to be connected
 			AdvertisingChannelMap:   0x7,       // [0x07] 0x01: ch37, 0x2: ch38, 0x4: ch39
 			AdvertisingFilterPolicy: 0x00,
 		},
-		scanParam: &cmd.LESetScanParameters{
-			LEScanType:           0x01,   // [0x00]: passive, 0x01: active
-			LEScanInterval:       0x0010, // [0x10]: 0.625ms * 16
-			LEScanWindow:         0x0010, // [0x10]: 0.625ms * 16
-			OwnAddressType:       0x00,   // [0x00]: public, 0x01: random
-			ScanningFilterPolicy: 0x00,   // [0x00]: accept all, 0x01: ignore non-white-listed.
-		},
+		scanParam: &cmd.NewLESetScanParameters(),
 	}
 
 	d.Option(opts...)
@@ -190,6 +185,22 @@ func (d *device) StopAdvertising() error {
 }
 
 func (d *device) Scan(ss []UUID, dup bool) {
+	if d.scanParam != nil {
+		if d.scanParam.LEScanType == cmd.LEScanTypeActive {
+			log.Printf("start active scan")
+		} else {
+			log.Printf("start passive scan")
+		}
+
+		resp, err := d.hci.SendRawCommand(d.scanParam)
+
+		if err != nil {
+			log.Printf("setup scan error: %v", err)
+			return
+		} else if resp == nil || resp[0] != 0x00 {
+			log.Printf("setup scan unexpected resp: %v", resp)
+		}
+	}
 	// TODO: filter
 	d.hci.SetScanEnable(true, dup)
 }

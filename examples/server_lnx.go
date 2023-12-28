@@ -1,4 +1,5 @@
-// +build
+//go:build ignore
+// +build ignore
 
 package main
 
@@ -9,9 +10,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/bettercap/gatt"
-	"github.com/bettercap/gatt/examples/service"
-	"github.com/bettercap/gatt/linux/cmd"
+	"github.com/grutz/gatt"
+	"github.com/grutz/gatt/examples/service"
+	"github.com/grutz/gatt/linux/cmd"
 )
 
 // server_lnx implements a GATT server.

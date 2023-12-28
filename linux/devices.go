@@ -1,6 +1,6 @@
 package linux
 
-import "github.com/bettercap/gatt/linux/gioctl"
+import "github.com/grutz/gatt/linux/gioctl"
 
 const (
 	ioctlSize     = uintptr(4)
@@ -26,9 +26,22 @@ type devListRequest struct {
 	devRequest [hciMaxDevices]devRequest
 }
 
+type hciDevInfoName [8]byte
+
+func (n hciDevInfoName) String() string {
+	// strings.Index returns -1 if \0 not exists.
+	i := 0
+	for ; i < len(n); i++ {
+		if n[i] == 0 {
+			break
+		}
+	}
+	return string(n[0:i])
+}
+
 type hciDevInfo struct {
 	id         uint16
-	name       [8]byte
+	name       hciDevInfoName
 	bdaddr     [6]byte
 	flags      uint32
 	devType    uint8

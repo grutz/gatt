@@ -7,6 +7,13 @@ advertise, accept connections, and handle requests.
 
 As a central, you can scan, connect, discover services, and make requests.
 
+## WARNING: grutzedits
+
+This fork of a fork of a fork of gatt is used in internal projects and
+may not be as maintained as other forks. If you choose to use it then
+thank you and enjoy! If you find bugs or have questions then please
+open an issue. I'll try to help.
+
 ## SETUP
 
 ### gatt supports both Linux and OS X.

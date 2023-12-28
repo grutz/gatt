@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/bettercap/gatt/linux/cmd"
+	"github.com/grutz/gatt/linux/cmd"
 )
 
 // LnxDeviceID specifies which HCI device to use.
@@ -92,5 +92,21 @@ func LnxSendHCIRawCommand(c cmd.CmdParam, rsp io.Writer) Option {
 		}
 		rsp.Write(b)
 		return err
+	}
+}
+
+// LnxSetScanMode sets the scan mode to the HCI device.
+// This option can be used with NewDevice or Option on Linux implementation.
+func LnxSetScanMode(active bool) Option {
+	return func(d Device) error {
+		if d.(*device).scanParam == nil {
+			d.(*device).scanParam = cmd.NewLESetScanParameters()
+		}
+		if active {
+			d.(*device).scanParam.LEScanType = cmd.LEScanTypeActive // active
+		} else {
+			d.(*device).scanParam.LEScanType = cmd.LEScanTypePassive // passive
+		}
+		return nil
 	}
 }

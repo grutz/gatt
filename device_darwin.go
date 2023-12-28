@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bettercap/gatt/xpc"
+	"github.com/grutz/gatt/xpc"
 )
 
 const (
@@ -427,7 +427,7 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 
 	id := event.MustGetInt("kCBMsgId")
 	args := event.MustGetDict("kCBMsgArgs")
-	//log.Printf(">> %d, %v", id, args)
+	// log.Printf(">> %d, %v", id, args)
 
 	switch id {
 	case // device event
@@ -545,7 +545,7 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 			p.rspc <- message{id: id, args: args}
 		}
 	default:
-		//log.Printf("Unhandled event: %#v", event)
+		// log.Printf("Unhandled event: %#v", event)
 	}
 }
 
