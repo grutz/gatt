@@ -45,7 +45,7 @@ func NewDevice(opts ...Option) (Device, error) {
 			AdvertisingChannelMap:   0x7,       // [0x07] 0x01: ch37, 0x2: ch38, 0x4: ch39
 			AdvertisingFilterPolicy: 0x00,
 		},
-		scanParam: &cmd.NewLESetScanParameters(),
+		scanParam: cmd.NewLESetScanParameters(),
 	}
 
 	d.Option(opts...)
