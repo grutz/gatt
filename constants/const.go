@@ -155,6 +155,7 @@ func (e AttErr) Marshal() []byte {
 // EventType are Advertisement event types
 type EventType uint8
 
+// String returns the string representation of the event type
 func (e EventType) String() string {
 	switch e {
 	case AdvInd:
@@ -172,10 +173,15 @@ func (e EventType) String() string {
 	}
 }
 
+// MarshalText returns the text representation of the event type
+func (e EventType) MarshalText() ([]byte, error) {
+	return []byte(e.String()), nil
+}
+
 const (
-	AdvInd        = 0x00 // Connectable undirected advertising (ADV_IND).
-	AdvDirectInd  = 0x01 // Connectable directed advertising (ADV_DIRECT_IND)
-	AdvScanInd    = 0x02 // Scannable undirected advertising (ADV_SCAN_IND)
-	AdvNonconnInd = 0x03 // Non connectable undirected advertising (ADV_NONCONN_IND)
-	ScanRsp       = 0x04 // Scan Response (SCAN_RSP)
+	AdvInd        = iota // Connectable undirected advertising (ADV_IND).
+	AdvDirectInd         // Connectable directed advertising (ADV_DIRECT_IND)
+	AdvScanInd           // Scannable undirected advertising (ADV_SCAN_IND)
+	AdvNonconnInd        // Non connectable undirected advertising (ADV_NONCONN_IND)
+	ScanRsp              // Scan Response (SCAN_RSP)
 )
