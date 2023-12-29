@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"strings"
+
+	"github.com/grutz/gatt/constants"
 )
 
 // ref. https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers
@@ -1955,7 +1957,7 @@ func (f Flags) String() string {
 
 // FIXME: check the unmarshalling of this data structure.
 type ServiceData struct {
-	UUID UUID
+	UUID constants.UUID
 	Data []byte
 }
 
@@ -1968,13 +1970,13 @@ type Advertisement struct {
 	Company          string
 	ManufacturerData []byte
 	ServiceData      []ServiceData
-	Services         []UUID
-	OverflowService  []UUID
+	Services         []constants.UUID
+	OverflowService  []constants.UUID
 	TxPowerLevel     int
 	Connectable      bool
 	Scannable        bool
-	EventType        uint8
-	SolicitedService []UUID
+	EventType		 constants.EventType
+	SolicitedService []constants.UUID
 	Raw              []byte
 }
 
@@ -1982,7 +1984,7 @@ type Advertisement struct {
 func (a *Advertisement) unmarshall(b []byte) error {
 
 	// Utility function for creating a list of uuids.
-	uuidList := func(u []UUID, d []byte, w int) []UUID {
+	uuidList := func(u []constants.UUID, d []byte, w int) []constants.UUID {
 		// https://github.com/grutz/gatt/issues/8
 		defer func() {
 			if recover() != nil {
@@ -1991,14 +1993,14 @@ func (a *Advertisement) unmarshall(b []byte) error {
 		}()
 
 		for len(d) > 0 {
-			u = append(u, UUID{d[:w]})
+			u = append(u, constants.UUID{d[:w]})
 			d = d[w:]
 		}
 		return u
 	}
 
 	serviceDataList := func(sd []ServiceData, d []byte, w int) []ServiceData {
-		serviceData := ServiceData{UUID{d[:w]}, make([]byte, len(d)-w)}
+		serviceData := ServiceData{constants.UUID{d[:w]}, make([]byte, len(d)-w)}
 		copy(serviceData.Data, d[2:])
 		return append(sd, serviceData)
 	}
@@ -2128,11 +2130,11 @@ func (a *AdvPacket) AppendManufacturerData(id uint16, b []byte) *AdvPacket {
 
 // AppendUUIDFit appends a BLE advertised service UUID
 // packet field if it fits in the packet, and reports whether the UUID fit.
-func (a *AdvPacket) AppendUUIDFit(uu []UUID) bool {
+func (a *AdvPacket) AppendUUIDFit(uu []constants.UUID) bool {
 	// Iterate all UUIDs to see if they fit in the packet or not.
 	fit, l := true, len(a.b)
 	for _, u := range uu {
-		if u.Equal(attrGAPUUID) || u.Equal(attrGATTUUID) {
+		if u.Equal(constants.AttrGAPUUID) || u.Equal(constants.AttrGATTUUID) {
 			continue
 		}
 		l += 2 + u.Len()
@@ -2144,7 +2146,7 @@ func (a *AdvPacket) AppendUUIDFit(uu []UUID) bool {
 
 	// Append the UUIDs until they no longer fit.
 	for _, u := range uu {
-		if u.Equal(attrGAPUUID) || u.Equal(attrGATTUUID) {
+		if u.Equal(constants.AttrGAPUUID) || u.Equal(constants.AttrGATTUUID) {
 			continue
 		}
 		if len(a.b)+2+u.Len() > MaxEIRPacketLength {
@@ -2152,13 +2154,13 @@ func (a *AdvPacket) AppendUUIDFit(uu []UUID) bool {
 		}
 		switch l = u.Len(); {
 		case l == 2 && fit:
-			a.AppendField(typeAllUUID16, u.b)
+			a.AppendField(typeAllUUID16, u.B)
 		case l == 16 && fit:
-			a.AppendField(typeAllUUID128, u.b)
+			a.AppendField(typeAllUUID128, u.B)
 		case l == 2 && !fit:
-			a.AppendField(typeSomeUUID16, u.b)
+			a.AppendField(typeSomeUUID16, u.B)
 		case l == 16 && !fit:
-			a.AppendField(typeSomeUUID128, u.b)
+			a.AppendField(typeSomeUUID128, u.B)
 		}
 	}
 	return fit

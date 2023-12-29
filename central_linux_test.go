@@ -7,6 +7,8 @@ import (
 	"net"
 	"testing"
 	"time"
+
+	"github.com/grutz/gatt/constants"
 )
 
 type testHandler struct {
@@ -35,20 +37,20 @@ func TestServing(t *testing.T) {
 
 	var wrote []byte
 
-	svc := &Service{uuid: MustParseUUID("09fc95c0-c111-11e3-9904-0002a5d5c51b")}
+	svc := &Service{uuid: constants.MustParseUUID("09fc95c0-c111-11e3-9904-0002a5d5c51b")}
 
-	svc.AddCharacteristic(MustParseUUID("11fac9e0-c111-11e3-9246-0002a5d5c51b")).HandleReadFunc(
+	svc.AddCharacteristic(constants.MustParseUUID("11fac9e0-c111-11e3-9246-0002a5d5c51b")).HandleReadFunc(
 		func(resp ResponseWriter, req *ReadRequest) {
 			io.WriteString(resp, "count: 1")
 		})
 
-	svc.AddCharacteristic(MustParseUUID("16fe0d80-c111-11e3-b8c8-0002a5d5c51b")).HandleWriteFunc(
+	svc.AddCharacteristic(constants.MustParseUUID("16fe0d80-c111-11e3-b8c8-0002a5d5c51b")).HandleWriteFunc(
 		func(r Request, data []byte) (status byte) {
 			wrote = data
 			return StatusSuccess
 		})
 
-	svc.AddCharacteristic(MustParseUUID("1c927b50-c116-11e3-8a33-0800200c9a66")).HandleNotifyFunc(
+	svc.AddCharacteristic(constants.MustParseUUID("1c927b50-c116-11e3-8a33-0800200c9a66")).HandleNotifyFunc(
 		func(r Request, n Notifier) {
 			go func() {
 				count := 0
@@ -65,7 +67,7 @@ func TestServing(t *testing.T) {
 		})
 
 	longString := "A really long characteristic"
-	svc.AddCharacteristic(MustParseUUID("11fac9e0-c111-11e3-9246-0002a5d5c51c")).HandleReadFunc(
+	svc.AddCharacteristic(constants.MustParseUUID("11fac9e0-c111-11e3-9246-0002a5d5c51c")).HandleReadFunc(
 		func(resp ResponseWriter, req *ReadRequest) {
 			start := req.Offset
 			end := req.Offset + req.Cap
@@ -79,13 +81,13 @@ func TestServing(t *testing.T) {
 			io.WriteString(resp, longString[start:end])
 		})
 
-	svc.AddCharacteristic(MustParseUUID("11fac9e0-c111-11e3-9246-0002a5d5c51d")).SetValue([]byte(longString))
+	svc.AddCharacteristic(constants.MustParseUUID("11fac9e0-c111-11e3-9246-0002a5d5c51d")).SetValue([]byte(longString))
 
-	gapSvc := NewService(attrGAPUUID)
+	gapSvc := NewService(constants.AttrGAPUUID)
 
-	gapSvc.AddCharacteristic(attrDeviceNameUUID).SetValue([]byte("Gopher"))
-	gapSvc.AddCharacteristic(attrAppearanceUUID).SetValue([]byte{0x00, 0x80})
-	gattSvc := NewService(attrGATTUUID)
+	gapSvc.AddCharacteristic(constants.AttrDeviceNameUUID).SetValue([]byte("Gopher"))
+	gapSvc.AddCharacteristic(constants.AttrAppearanceUUID).SetValue([]byte{0x00, 0x80})
+	gattSvc := NewService(constants.AttrGATTUUID)
 
 	a := generateAttributes([]*Service{gapSvc, gattSvc, svc}, uint16(1)) // ble a start at 1
 	go newCentral(a, net.HardwareAddr{}, h).loop()

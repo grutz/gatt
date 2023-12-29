@@ -4,11 +4,12 @@ import (
 	"log"
 
 	"github.com/grutz/gatt"
+	"github.com/grutz/gatt/constants"
 )
 
 var (
-	attrGATTUUID           = gatt.UUID16(0x1801)
-	attrServiceChangedUUID = gatt.UUID16(0x2A05)
+	attrGATTUUID           = constants.UUID16(0x1801)
+	attrServiceChangedUUID = constants.UUID16(0x2A05)
 )
 
 // NOTE: OS X provides GAP and GATT services, and they can't be customized.

@@ -1,5 +1,7 @@
 package gatt
 
+import "github.com/grutz/gatt/constants"
+
 // Supported statuses for GATT characteristic read/write operations.
 // These correspond to att constants in the BLE spec
 const (
@@ -66,7 +68,7 @@ func (p Property) String() (result string) {
 
 // A Service is a BLE service.
 type Service struct {
-	uuid  UUID
+	uuid  constants.UUID
 	chars []*Characteristic
 
 	h    uint16
@@ -74,14 +76,14 @@ type Service struct {
 }
 
 // NewService creates and initialize a new Service using u as it's UUID.
-func NewService(u UUID) *Service {
+func NewService(u constants.UUID) *Service {
 	return &Service{uuid: u}
 }
 
 // AddCharacteristic adds a characteristic to a service.
 // AddCharacteristic panics if the service already contains another
 // characteristic with the same UUID.
-func (s *Service) AddCharacteristic(u UUID) *Characteristic {
+func (s *Service) AddCharacteristic(u constants.UUID) *Characteristic {
 	for _, c := range s.chars {
 		if c.uuid.Equal(u) {
 			panic("service already contains a characteristic with uuid " + u.String())
@@ -93,7 +95,7 @@ func (s *Service) AddCharacteristic(u UUID) *Characteristic {
 }
 
 // UUID returns the UUID of the service.
-func (s *Service) UUID() UUID { return s.uuid }
+func (s *Service) UUID() constants.UUID { return s.uuid }
 
 // Name returns the specificatin name of the service according to its UUID.
 // If the UUID is not assigne, Name returns an empty string.
@@ -121,7 +123,7 @@ func (s *Service) Characteristics() []*Characteristic { return s.chars }
 
 // A Characteristic is a BLE characteristic.
 type Characteristic struct {
-	uuid   UUID
+	uuid   constants.UUID
 	props  Property // enabled properties
 	secure Property // security enabled properties
 	svc    *Service
@@ -141,7 +143,7 @@ type Characteristic struct {
 }
 
 // NewCharacteristic creates and returns a Characteristic.
-func NewCharacteristic(u UUID, s *Service, props Property, h uint16, vh uint16) *Characteristic {
+func NewCharacteristic(u constants.UUID, s *Service, props Property, h uint16, vh uint16) *Characteristic {
 	c := &Characteristic{
 		uuid:  u,
 		svc:   s,
@@ -181,7 +183,7 @@ func (c *Characteristic) SetDescriptor(cccd *Descriptor) { c.cccd = cccd }
 func (c *Characteristic) SetDescriptors(descs []*Descriptor) { c.descs = descs }
 
 // UUID returns the UUID of the characteristic.
-func (c *Characteristic) UUID() UUID {
+func (c *Characteristic) UUID() constants.UUID {
 	return c.uuid
 }
 
@@ -209,7 +211,7 @@ func (c *Characteristic) Descriptors() []*Descriptor {
 // AddDescriptor adds a descriptor to a characteristic.
 // AddDescriptor panics if the characteristic already contains another
 // descriptor with the same UUID.
-func (c *Characteristic) AddDescriptor(u UUID) *Descriptor {
+func (c *Characteristic) AddDescriptor(u constants.UUID) *Descriptor {
 	for _, d := range c.descs {
 		if d.uuid.Equal(u) {
 			panic("service already contains a characteristic with uuid " + u.String())
@@ -295,7 +297,7 @@ func (c *Characteristic) HandleNotify(h NotifyHandler) {
 		secure = CharRead | CharWrite
 	}
 	cd := &Descriptor{
-		uuid:   attrClientCharacteristicConfigUUID,
+		uuid:   constants.AttrClientCharacteristicConfigUUID,
 		props:  CharRead | CharWrite | CharWriteNR,
 		secure: secure,
 		// FIXME: currently, we always return 0, which is inaccurate.
@@ -322,7 +324,7 @@ func (c *Characteristic) GetNotifyHandler() NotifyHandler {
 
 // Descriptor is a BLE descriptor
 type Descriptor struct {
-	uuid   UUID
+	uuid   constants.UUID
 	char   *Characteristic
 	props  Property // enabled properties
 	secure Property // security enabled properties
@@ -342,7 +344,7 @@ func (d *Descriptor) Handle() uint16 { return d.h }
 func (d *Descriptor) SetHandle(h uint16) { d.h = h }
 
 // NewDescriptor creates and returns a Descriptor.
-func NewDescriptor(u UUID, h uint16, char *Characteristic) *Descriptor {
+func NewDescriptor(u constants.UUID, h uint16, char *Characteristic) *Descriptor {
 	cd := &Descriptor{
 		uuid: u,
 		h:    h,
@@ -352,7 +354,7 @@ func NewDescriptor(u UUID, h uint16, char *Characteristic) *Descriptor {
 }
 
 // UUID returns the UUID of the descriptor.
-func (d *Descriptor) UUID() UUID {
+func (d *Descriptor) UUID() constants.UUID {
 	return d.uuid
 }
 

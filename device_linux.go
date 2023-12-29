@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/linux"
 	"github.com/grutz/gatt/linux/cmd"
 )
@@ -143,7 +144,7 @@ func (d *device) Advertise(a *AdvPacket) error {
 	return d.hci.SetAdvertiseEnable(true)
 }
 
-func (d *device) AdvertiseNameAndServices(name string, uu []UUID) error {
+func (d *device) AdvertiseNameAndServices(name string, uu []constants.UUID) error {
 	a := &AdvPacket{}
 	a.AppendFlags(flagGeneralDiscoverable | flagLEOnly)
 	a.AppendUUIDFit(uu)
@@ -171,11 +172,11 @@ func (d *device) AdvertiseIBeaconData(b []byte) error {
 	return d.Advertise(a)
 }
 
-func (d *device) AdvertiseIBeacon(u UUID, major, minor uint16, pwr int8) error {
+func (d *device) AdvertiseIBeacon(u constants.UUID, major, minor uint16, pwr int8) error {
 	b := make([]byte, 23)
 	b[0] = 0x02                               // Data type: iBeacon
 	b[1] = 0x15                               // Data length: 21 bytes
-	copy(b[2:], reverse(u.b))                 // Big endian
+	copy(b[2:], constants.Reverse(u.B))       // Big endian
 	binary.BigEndian.PutUint16(b[18:], major) // Big endian
 	binary.BigEndian.PutUint16(b[20:], minor) // Big endian
 	b[22] = uint8(pwr)                        // Measured Tx Power
@@ -186,7 +187,7 @@ func (d *device) StopAdvertising() error {
 	return d.hci.SetAdvertiseEnable(false)
 }
 
-func (d *device) Scan(ss []UUID, dup bool) {
+func (d *device) Scan(ss []constants.UUID, dup bool) {
 	if d.scanParam != nil {
 		if d.scanParam.LEScanType == cmd.LEScanTypeActive {
 			log.Printf("start active scan")

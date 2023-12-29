@@ -1,4 +1,4 @@
-package gatt
+package constants
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 type UUID struct {
 	// Hide the bytes, so that we can enforce that they have length 2 or 16,
 	// and that they are immutable. This simplifies the code and API.
-	b []byte
+	B []byte
 }
 
 // UUID16 converts a uint16 (such as 0x1800) to a UUID.
@@ -33,7 +33,7 @@ func ParseUUID(s string) (UUID, error) {
 	if err := lenErr(len(b)); err != nil {
 		return UUID{}, err
 	}
-	return UUID{reverse(b)}, nil
+	return UUID{Reverse(b)}, nil
 }
 
 // MustParseUUID parses a standard-format UUID string,
@@ -58,21 +58,21 @@ func lenErr(n int) error {
 // Len returns the length of the UUID, in bytes.
 // BLE UUIDs are either 2 or 16 bytes.
 func (u UUID) Len() int {
-	return len(u.b)
+	return len(u.B)
 }
 
 // String hex-encodes a UUID.
 func (u UUID) String() string {
-	return fmt.Sprintf("%x", reverse(u.b))
+	return fmt.Sprintf("%x", Reverse(u.B))
 }
 
 func (u UUID) Bytes() []byte {
-	return u.b
+	return u.B
 }
 
 // Equal returns a boolean reporting whether v represent the same UUID as u.
 func (u UUID) Equal(v UUID) bool {
-	return bytes.Equal(u.b, v.b)
+	return bytes.Equal(u.B, v.B)
 }
 
 // UUIDContains returns a boolean reporting whether u is in the slice s.
@@ -90,8 +90,8 @@ func UUIDContains(s []UUID, u UUID) bool {
 	return false
 }
 
-// reverse returns a reversed copy of u.
-func reverse(u []byte) []byte {
+// Reverse returns a reversed copy of u.
+func Reverse(u []byte) []byte {
 	// Special-case 16 bit UUIDS for speed.
 	l := len(u)
 	if l == 2 {

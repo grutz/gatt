@@ -2,6 +2,8 @@ package gatt
 
 import (
 	"errors"
+
+	"github.com/grutz/gatt/constants"
 )
 
 const (
@@ -32,7 +34,7 @@ func (d *simDevice) Advertise(a *AdvPacket) error {
 	return errors.New("Method not supported")
 }
 
-func (d *simDevice) AdvertiseNameAndServices(name string, ss []UUID) error {
+func (d *simDevice) AdvertiseNameAndServices(name string, ss []constants.UUID) error {
 	return errors.New("Method not supported")
 }
 
@@ -40,7 +42,7 @@ func (d *simDevice) AdvertiseIBeaconData(b []byte) error {
 	return errors.New("Method not supported")
 }
 
-func (d *simDevice) AdvertiseIBeacon(u UUID, major, minor uint16, pwr int8) error {
+func (d *simDevice) AdvertiseIBeacon(u constants.UUID, major, minor uint16, pwr int8) error {
 	return errors.New("Method not supported")
 }
 
@@ -60,7 +62,7 @@ func (d *simDevice) SetServices(ss []*Service) error {
 	return errors.New("Method not supported")
 }
 
-func (d *simDevice) Scan(ss []UUID, dup bool) {
+func (d *simDevice) Scan(ss []constants.UUID, dup bool) {
 	for _, s := range ss {
 		if s.Equal(d.s.UUID()) {
 			go d.peripheralDiscovered(
@@ -118,7 +120,7 @@ func (p *simPeripheral) Services() []*Service {
 	return []*Service{p.d.s}
 }
 
-func (p *simPeripheral) DiscoverServices(ss []UUID) ([]*Service, error) {
+func (p *simPeripheral) DiscoverServices(ss []constants.UUID) ([]*Service, error) {
 	for _, s := range ss {
 		if s.Equal(p.d.s.UUID()) {
 			return []*Service{p.d.s}, nil
@@ -127,11 +129,11 @@ func (p *simPeripheral) DiscoverServices(ss []UUID) ([]*Service, error) {
 	return []*Service{}, nil
 }
 
-func (p *simPeripheral) DiscoverIncludedServices(ss []UUID, s *Service) ([]*Service, error) {
+func (p *simPeripheral) DiscoverIncludedServices(ss []constants.UUID, s *Service) ([]*Service, error) {
 	return nil, errors.New("Method not supported")
 }
 
-func (p *simPeripheral) DiscoverCharacteristics(cc []UUID, s *Service) ([]*Characteristic, error) {
+func (p *simPeripheral) DiscoverCharacteristics(cc []constants.UUID, s *Service) ([]*Characteristic, error) {
 	requestedUUIDs := make(map[string]bool)
 	for _, c := range cc {
 		requestedUUIDs[c.String()] = true
@@ -145,7 +147,7 @@ func (p *simPeripheral) DiscoverCharacteristics(cc []UUID, s *Service) ([]*Chara
 	return foundChars, nil
 }
 
-func (p *simPeripheral) DiscoverDescriptors(d []UUID, c *Characteristic) ([]*Descriptor, error) {
+func (p *simPeripheral) DiscoverDescriptors(d []constants.UUID, c *Characteristic) ([]*Descriptor, error) {
 	return nil, errors.New("Method not supported")
 }
 
@@ -157,7 +159,7 @@ func (p *simPeripheral) ReadCharacteristic(c *Characteristic) ([]byte, error) {
 		rhandler.ServeRead(rsp, req)
 		return rsp.buf.Bytes(), nil
 	} else {
-		return nil, AttEcodeReadNotPerm
+		return nil, constants.AttEcodeReadNotPerm
 	}
 }
 
@@ -174,12 +176,12 @@ func (p *simPeripheral) WriteCharacteristic(c *Characteristic, b []byte, noRsp b
 	if whandler != nil {
 		r := Request{}
 		if res := whandler.ServeWrite(r, b); res != 0 {
-			return AttEcode(res)
+			return constants.AttEcode(res)
 		} else {
 			return nil
 		}
 	} else {
-		return AttEcodeWriteNotPerm
+		return constants.AttEcodeWriteNotPerm
 	}
 }
 

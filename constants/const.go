@@ -1,61 +1,61 @@
-package gatt
+package constants
 
 // This file includes constants from the BLE spec.
 
 var (
-	attrGAPUUID  = UUID16(0x1800)
-	attrGATTUUID = UUID16(0x1801)
+	AttrGAPUUID  = UUID16(0x1800)
+	AttrGATTUUID = UUID16(0x1801)
 
-	attrPrimaryServiceUUID   = UUID16(0x2800)
-	attrSecondaryServiceUUID = UUID16(0x2801)
-	attrIncludeUUID          = UUID16(0x2802)
-	attrCharacteristicUUID   = UUID16(0x2803)
+	AttrPrimaryServiceUUID   = UUID16(0x2800)
+	AttrSecondaryServiceUUID = UUID16(0x2801)
+	AttrIncludeUUID          = UUID16(0x2802)
+	AttrCharacteristicUUID   = UUID16(0x2803)
 
-	attrClientCharacteristicConfigUUID = UUID16(0x2902)
-	attrServerCharacteristicConfigUUID = UUID16(0x2903)
+	AttrClientCharacteristicConfigUUID = UUID16(0x2902)
+	AttrServerCharacteristicConfigUUID = UUID16(0x2903)
 
-	attrDeviceNameUUID        = UUID16(0x2A00)
-	attrAppearanceUUID        = UUID16(0x2A01)
-	attrPeripheralPrivacyUUID = UUID16(0x2A02)
-	attrReconnectionAddrUUID  = UUID16(0x2A03)
-	attrPeferredParamsUUID    = UUID16(0x2A04)
-	attrServiceChangedUUID    = UUID16(0x2A05)
+	AttrDeviceNameUUID        = UUID16(0x2A00)
+	AttrAppearanceUUID        = UUID16(0x2A01)
+	AttrPeripheralPrivacyUUID = UUID16(0x2A02)
+	AttrReconnectionAddrUUID  = UUID16(0x2A03)
+	AttrPeferredParamsUUID    = UUID16(0x2A04)
+	AttrServiceChangedUUID    = UUID16(0x2A05)
 )
 
 const (
-	gattCCCNotifyFlag   = 0x0001
-	gattCCCIndicateFlag = 0x0002
+	GATTCCCNotifyFlag   = 0x0001
+	GATTCCCIndicateFlag = 0x0002
 )
 
 const (
-	attOpError              = 0x01
-	attOpMtuReq             = 0x02
-	attOpMtuRsp             = 0x03
-	attOpFindInfoReq        = 0x04
-	attOpFindInfoRsp        = 0x05
-	attOpFindByTypeValueReq = 0x06
-	attOpFindByTypeValueRsp = 0x07
-	attOpReadByTypeReq      = 0x08
-	attOpReadByTypeRsp      = 0x09
-	attOpReadReq            = 0x0a
-	attOpReadRsp            = 0x0b
-	attOpReadBlobReq        = 0x0c
-	attOpReadBlobRsp        = 0x0d
-	attOpReadMultiReq       = 0x0e
-	attOpReadMultiRsp       = 0x0f
-	attOpReadByGroupReq     = 0x10
-	attOpReadByGroupRsp     = 0x11
-	attOpWriteReq           = 0x12
-	attOpWriteRsp           = 0x13
-	attOpWriteCmd           = 0x52
-	attOpPrepWriteReq       = 0x16
-	attOpPrepWriteRsp       = 0x17
-	attOpExecWriteReq       = 0x18
-	attOpExecWriteRsp       = 0x19
-	attOpHandleNotify       = 0x1b
-	attOpHandleInd          = 0x1d
-	attOpHandleCnf          = 0x1e
-	attOpSignedWriteCmd     = 0xd2
+	AttOpError              = 0x01
+	AttOpMtuReq             = 0x02
+	AttOpMtuRsp             = 0x03
+	AttOpFindInfoReq        = 0x04
+	AttOpFindInfoRsp        = 0x05
+	AttOpFindByTypeValueReq = 0x06
+	AttOpFindByTypeValueRsp = 0x07
+	AttOpReadByTypeReq      = 0x08
+	AttOpReadByTypeRsp      = 0x09
+	AttOpReadReq            = 0x0a
+	AttOpReadRsp            = 0x0b
+	AttOpReadBlobReq        = 0x0c
+	AttOpReadBlobRsp        = 0x0d
+	AttOpReadMultiReq       = 0x0e
+	AttOpReadMultiRsp       = 0x0f
+	AttOpReadByGroupReq     = 0x10
+	AttOpReadByGroupRsp     = 0x11
+	AttOpWriteReq           = 0x12
+	AttOpWriteRsp           = 0x13
+	AttOpWriteCmd           = 0x52
+	AttOpPrepWriteReq       = 0x16
+	AttOpPrepWriteRsp       = 0x17
+	AttOpExecWriteReq       = 0x18
+	AttOpExecWriteRsp       = 0x19
+	AttOpHandleNotify       = 0x1b
+	AttOpHandleInd          = 0x1d
+	AttOpHandleCnf          = 0x1e
+	AttOpSignedWriteCmd     = 0xd2
 )
 
 type AttEcode byte
@@ -119,35 +119,63 @@ var AttEcodeName = map[AttEcode]string{
 	AttEcodeInsuffResources:   "insufficient resources",
 }
 
-func attErrorRsp(op byte, h uint16, s AttEcode) []byte {
-	return attErr{opcode: op, attr: h, status: s}.Marshal()
+func AttErrorRsp(op byte, h uint16, s AttEcode) []byte {
+	return AttErr{Opcode: op, Attr: h, Status: s}.Marshal()
 }
 
 // attRspFor maps from att request
 // codes to att response codes.
-var attRspFor = map[byte]byte{
-	attOpMtuReq:             attOpMtuRsp,
-	attOpFindInfoReq:        attOpFindInfoRsp,
-	attOpFindByTypeValueReq: attOpFindByTypeValueRsp,
-	attOpReadByTypeReq:      attOpReadByTypeRsp,
-	attOpReadReq:            attOpReadRsp,
-	attOpReadBlobReq:        attOpReadBlobRsp,
-	attOpReadMultiReq:       attOpReadMultiRsp,
-	attOpReadByGroupReq:     attOpReadByGroupRsp,
-	attOpWriteReq:           attOpWriteRsp,
-	attOpPrepWriteReq:       attOpPrepWriteRsp,
-	attOpExecWriteReq:       attOpExecWriteRsp,
+var AttRspFor = map[byte]byte{
+	AttOpMtuReq:             AttOpMtuRsp,
+	AttOpFindInfoReq:        AttOpFindInfoRsp,
+	AttOpFindByTypeValueReq: AttOpFindByTypeValueRsp,
+	AttOpReadByTypeReq:      AttOpReadByTypeRsp,
+	AttOpReadReq:            AttOpReadRsp,
+	AttOpReadBlobReq:        AttOpReadBlobRsp,
+	AttOpReadMultiReq:       AttOpReadMultiRsp,
+	AttOpReadByGroupReq:     AttOpReadByGroupRsp,
+	AttOpWriteReq:           AttOpWriteRsp,
+	AttOpPrepWriteReq:       AttOpPrepWriteRsp,
+	AttOpExecWriteReq:       AttOpExecWriteRsp,
 }
 
-type attErr struct {
-	opcode uint8
-	attr   uint16
-	status AttEcode
+type AttErr struct {
+	Opcode uint8
+	Attr   uint16
+	Status AttEcode
 }
 
 // TODO: Reformulate in a way that lets the caller avoid allocs.
 // Accept a []byte? Write directly to an io.Writer?
-func (e attErr) Marshal() []byte {
-	// little-endian encoding for attr
-	return []byte{attOpError, e.opcode, byte(e.attr), byte(e.attr >> 8), byte(e.status)}
+func (e AttErr) Marshal() []byte {
+	// little-endian encoding for Attr
+	return []byte{AttOpError, e.Opcode, byte(e.Attr), byte(e.Attr >> 8), byte(e.Status)}
 }
+
+// EventType are Advertisement event types
+type EventType uint8
+
+func (e EventType) String() string {
+	switch e {
+	case AdvInd:
+		return "ADV_IND"
+	case AdvDirectInd:
+		return "ADV_DIRECT_IND"
+	case AdvScanInd:
+		return "ADV_SCAN_IND"
+	case AdvNonconnInd:
+		return "ADV_NONCONN_IND"
+	case ScanRsp:
+		return "SCAN_RSP"
+	default:
+		return "Unknown"
+	}
+}
+
+const (
+	AdvInd        = 0x00 // Connectable undirected advertising (ADV_IND).
+	AdvDirectInd  = 0x01 // Connectable directed advertising (ADV_DIRECT_IND)
+	AdvScanInd    = 0x02 // Scannable undirected advertising (ADV_SCAN_IND)
+	AdvNonconnInd = 0x03 // Non connectable undirected advertising (ADV_NONCONN_IND)
+	ScanRsp       = 0x04 // Scan Response (SCAN_RSP)
+)

@@ -1,15 +1,19 @@
 package gatt
 
-import "log"
+import (
+	"log"
+
+	"github.com/grutz/gatt/constants"
+)
 
 // attr is a BLE attribute. It is not exported;
 // managing attributes is an implementation detail.
 type attr struct {
-	h      uint16   // attribute handle
-	typ    UUID     // attribute type in UUID
-	props  Property // attripute property
-	secure Property // attribute secure (implementation specific usage)
-	value  []byte   // attribute value
+	h      uint16         // attribute handle
+	typ    constants.UUID // attribute type in UUID
+	props  Property       // attripute property
+	secure Property       // attribute secure (implementation specific usage)
+	value  []byte         // attribute value
 
 	pvt interface{} // point to the corresponsing Serveice/Characteristic/Descriptor
 }
@@ -96,8 +100,8 @@ func generateServiceAttributes(s *Service, h uint16, last bool) (uint16, []attr)
 	// endh set later
 	a := attr{
 		h:     h,
-		typ:   attrPrimaryServiceUUID,
-		value: s.uuid.b,
+		typ:   constants.AttrPrimaryServiceUUID,
+		value: s.uuid.B,
 		props: CharRead,
 		pvt:   s,
 	}
@@ -124,8 +128,8 @@ func generateCharAttributes(c *Characteristic, h uint16) (uint16, []attr) {
 	c.vh = h + 1
 	ca := attr{
 		h:     c.h,
-		typ:   attrCharacteristicUUID,
-		value: append([]byte{byte(c.props), byte(c.vh), byte((c.vh) >> 8)}, c.uuid.b...),
+		typ:   constants.AttrCharacteristicUUID,
+		value: append([]byte{byte(c.props), byte(c.vh), byte((c.vh) >> 8)}, c.uuid.B...),
 		props: c.props,
 		pvt:   c,
 	}

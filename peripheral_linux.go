@@ -10,6 +10,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/linux"
 )
 
@@ -41,11 +42,11 @@ func (p *peripheral) Name() string         { return p.pd.Name }
 func (p *peripheral) Services() []*Service { return p.svcs }
 
 func finish(op byte, h uint16, b []byte) (bool, error) {
-	done := b[0] == attOpError && b[1] == op && b[2] == byte(h) && b[3] == byte(h>>8)
+	done := b[0] == constants.AttOpError && b[1] == op && b[2] == byte(h) && b[3] == byte(h>>8)
 	var err error
-	if b[0] == attOpError {
-		err = AttEcode(b[4])
-		if err == AttEcodeAttrNotFound {
+	if b[0] == constants.AttOpError {
+		err = constants.AttEcode(b[4])
+		if err == constants.AttEcodeAttrNotFound {
 			// Expect attribute not found errors
 			err = nil
 		} else {
@@ -56,13 +57,13 @@ func finish(op byte, h uint16, b []byte) (bool, error) {
 	return done, err
 }
 
-func (p *peripheral) DiscoverServices(ds []UUID) ([]*Service, error) {
+func (p *peripheral) DiscoverServices(ds []constants.UUID) ([]*Service, error) {
 	// p.pd.Conn.Write([]byte{0x02, 0x87, 0x00}) // MTU
 	done := false
 	start := uint16(0x0001)
 	var err error
 	for !done {
-		op := byte(attOpReadByGroupReq)
+		op := byte(constants.AttOpReadByGroupReq)
 		b := make([]byte, 7)
 		b[0] = op
 		binary.LittleEndian.PutUint16(b[1:3], start)
@@ -85,9 +86,9 @@ func (p *peripheral) DiscoverServices(ds []UUID) ([]*Service, error) {
 
 		for len(b) != 0 {
 			endh := binary.LittleEndian.Uint16(b[2:4])
-			u := UUID{b[4:l]}
+			u := constants.UUID{b[4:l]}
 
-			if UUIDContains(ds, u) {
+			if constants.UUIDContains(ds, u) {
 				s := &Service{
 					uuid: u,
 					h:    binary.LittleEndian.Uint16(b[:2]),
@@ -104,18 +105,18 @@ func (p *peripheral) DiscoverServices(ds []UUID) ([]*Service, error) {
 	return p.svcs, err
 }
 
-func (p *peripheral) DiscoverIncludedServices(ss []UUID, s *Service) ([]*Service, error) {
+func (p *peripheral) DiscoverIncludedServices(ss []constants.UUID, s *Service) ([]*Service, error) {
 	// TODO
 	return nil, nil
 }
 
-func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characteristic, error) {
+func (p *peripheral) DiscoverCharacteristics(cs []constants.UUID, s *Service) ([]*Characteristic, error) {
 	done := false
 	start := s.h
 	var prev *Characteristic
 	var err error
 	for !done {
-		op := byte(attOpReadByTypeReq)
+		op := byte(constants.AttOpReadByTypeReq)
 		b := make([]byte, 7)
 		b[0] = op
 		binary.LittleEndian.PutUint16(b[1:3], start)
@@ -123,7 +124,7 @@ func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characte
 		binary.LittleEndian.PutUint16(b[5:7], 0x2803)
 
 		b = p.sendReq(op, b)
-		if done = b[0] != byte(attOpReadByTypeRsp); done {
+		if done = b[0] != byte(constants.AttOpReadByTypeRsp); done {
 			break
 		}
 
@@ -140,7 +141,7 @@ func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characte
 			h := binary.LittleEndian.Uint16(b[:2])
 			props := Property(b[2])
 			vh := binary.LittleEndian.Uint16(b[3:5])
-			u := UUID{b[5:l]}
+			u := constants.UUID{b[5:l]}
 			s := searchService(p.svcs, h, vh)
 			if s == nil {
 				log.Printf("Can't find service range that contains 0x%04X - 0x%04X", h, vh)
@@ -153,7 +154,7 @@ func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characte
 				h:     h,
 				vh:    vh,
 			}
-			if UUIDContains(cs, u) {
+			if constants.UUIDContains(cs, u) {
 				s.chars = append(s.chars, c)
 			}
 			b = b[l:]
@@ -171,7 +172,7 @@ func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characte
 	return s.chars, err
 }
 
-func (p *peripheral) DiscoverDescriptors(ds []UUID, c *Characteristic) ([]*Descriptor, error) {
+func (p *peripheral) DiscoverDescriptors(ds []constants.UUID, c *Characteristic) ([]*Descriptor, error) {
 	done := false
 	start := c.vh + 1
 	var err error
@@ -179,7 +180,7 @@ func (p *peripheral) DiscoverDescriptors(ds []UUID, c *Characteristic) ([]*Descr
 		if c.endh == 0 {
 			c.endh = c.svc.endh
 		}
-		op := byte(attOpFindInfoReq)
+		op := byte(constants.AttOpFindInfoReq)
 		b := make([]byte, 5)
 		b[0] = op
 		binary.LittleEndian.PutUint16(b[1:3], start)
@@ -205,12 +206,12 @@ func (p *peripheral) DiscoverDescriptors(ds []UUID, c *Characteristic) ([]*Descr
 
 		for len(b) != 0 {
 			h := binary.LittleEndian.Uint16(b[:2])
-			u := UUID{b[2:l]}
+			u := constants.UUID{b[2:l]}
 			d := &Descriptor{uuid: u, h: h, char: c}
-			if UUIDContains(ds, u) {
+			if constants.UUIDContains(ds, u) {
 				c.descs = append(c.descs, d)
 			}
-			if u.Equal(attrClientCharacteristicConfigUUID) {
+			if u.Equal(constants.AttrClientCharacteristicConfigUUID) {
 				c.cccd = d
 			}
 			b = b[l:]
@@ -223,7 +224,7 @@ func (p *peripheral) DiscoverDescriptors(ds []UUID, c *Characteristic) ([]*Descr
 
 func (p *peripheral) ReadCharacteristic(c *Characteristic) ([]byte, error) {
 	b := make([]byte, 3)
-	op := byte(attOpReadReq)
+	op := byte(constants.AttOpReadReq)
 	b[0] = op
 	binary.LittleEndian.PutUint16(b[1:3], c.vh)
 
@@ -250,10 +251,10 @@ func (p *peripheral) ReadLongCharacteristic(c *Characteristic) ([]byte, error) {
 	buf.Write(firstRead)
 	off := uint16(len(firstRead))
 	done := false
-	err = AttEcodeSuccess
+	err = constants.AttEcodeSuccess
 	for {
 		b := make([]byte, 5)
-		op := byte(attOpReadBlobReq)
+		op := byte(constants.AttOpReadBlobReq)
 		b[0] = op
 		binary.LittleEndian.PutUint16(b[1:3], c.vh)
 		binary.LittleEndian.PutUint16(b[3:5], off)
@@ -278,10 +279,10 @@ func (p *peripheral) ReadLongCharacteristic(c *Characteristic) ([]byte, error) {
 
 func (p *peripheral) WriteCharacteristic(c *Characteristic, value []byte, noRsp bool) error {
 	b := make([]byte, 3+len(value))
-	op := byte(attOpWriteReq)
+	op := byte(constants.AttOpWriteReq)
 	b[0] = op
 	if noRsp {
-		b[0] = attOpWriteCmd
+		b[0] = constants.AttOpWriteCmd
 	}
 	binary.LittleEndian.PutUint16(b[1:3], c.vh)
 	copy(b[3:], value)
@@ -298,7 +299,7 @@ func (p *peripheral) WriteCharacteristic(c *Characteristic, value []byte, noRsp 
 
 func (p *peripheral) ReadDescriptor(d *Descriptor) ([]byte, error) {
 	b := make([]byte, 3)
-	op := byte(attOpReadReq)
+	op := byte(constants.AttOpReadReq)
 	b[0] = op
 	binary.LittleEndian.PutUint16(b[1:3], d.h)
 
@@ -310,7 +311,7 @@ func (p *peripheral) ReadDescriptor(d *Descriptor) ([]byte, error) {
 
 func (p *peripheral) WriteDescriptor(d *Descriptor, value []byte) error {
 	b := make([]byte, 3+len(value))
-	op := byte(attOpWriteReq)
+	op := byte(constants.AttOpWriteReq)
 	b[0] = op
 	binary.LittleEndian.PutUint16(b[1:3], d.h)
 	copy(b[3:], value)
@@ -332,7 +333,7 @@ func (p *peripheral) setNotifyValue(c *Characteristic, flag uint16,
 		p.sub.subscribe(c.vh, func(b []byte, err error) { f(c, b, err) })
 	}
 	b := make([]byte, 5)
-	op := byte(attOpWriteReq)
+	op := byte(constants.AttOpWriteReq)
 	b[0] = op
 	binary.LittleEndian.PutUint16(b[1:3], c.cccd.h)
 	binary.LittleEndian.PutUint16(b[3:5], ccc)
@@ -348,12 +349,12 @@ func (p *peripheral) setNotifyValue(c *Characteristic, flag uint16,
 
 func (p *peripheral) SetNotifyValue(c *Characteristic,
 	f func(*Characteristic, []byte, error)) error {
-	return p.setNotifyValue(c, gattCCCNotifyFlag, f)
+	return p.setNotifyValue(c, constants.GATTCCCNotifyFlag, f)
 }
 
 func (p *peripheral) SetIndicateValue(c *Characteristic,
 	f func(*Characteristic, []byte, error)) error {
-	return p.setNotifyValue(c, gattCCCIndicateFlag, f)
+	return p.setNotifyValue(c, constants.GATTCCCIndicateFlag, f)
 }
 
 func (p *peripheral) ReadRSSI() int {
@@ -404,12 +405,12 @@ func (p *peripheral) loop() {
 				for {
 					r := <-rspc
 					reqOp, rspOp := req.b[0], r[0]
-					if rspOp == attRspFor[reqOp] || (rspOp == attOpError && r[1] == reqOp) {
+					if rspOp == constants.AttRspFor[reqOp] || (rspOp == constants.AttOpError && r[1] == reqOp) {
 						req.rspc <- r
 						break
 					}
 					log.Printf("Request 0x%02x got a mismatched response: 0x%02x", reqOp, rspOp)
-					p.l2c.Write(attErrorRsp(rspOp, 0x0000, AttEcodeReqNotSupp))
+					p.l2c.Write(constants.AttErrorRsp(rspOp, 0x0000, constants.AttEcodeReqNotSupp))
 				}
 			case <-p.quitc:
 				return
@@ -432,7 +433,7 @@ func (p *peripheral) loop() {
 		b := make([]byte, n)
 		copy(b, buf)
 
-		if (b[0] != attOpHandleNotify) && (b[0] != attOpHandleInd) {
+		if (b[0] != constants.AttOpHandleNotify) && (b[0] != constants.AttOpHandleInd) {
 			log.Printf("response 0x%x", b[0])
 			rspc <- b
 			continue
@@ -447,9 +448,9 @@ func (p *peripheral) loop() {
 			go f(b[3:], nil)
 		}
 
-		if b[0] == attOpHandleInd {
+		if b[0] == constants.AttOpHandleInd {
 			// write aknowledgement for indication
-			p.l2c.Write([]byte{attOpHandleCnf})
+			p.l2c.Write([]byte{constants.AttOpHandleCnf})
 		}
 
 	}
@@ -457,7 +458,7 @@ func (p *peripheral) loop() {
 
 func (p *peripheral) SetMTU(mtu uint16) error {
 	b := make([]byte, 3)
-	op := byte(attOpMtuReq)
+	op := byte(constants.AttOpMtuReq)
 	b[0] = op
 	h := uint16(mtu)
 	binary.LittleEndian.PutUint16(b[1:3], h)

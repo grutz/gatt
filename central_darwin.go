@@ -3,18 +3,19 @@ package gatt
 import (
 	"sync"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/xpc"
 )
 
 type central struct {
 	dev         *device
-	uuid        UUID
+	uuid        constants.UUID
 	mtu         int
 	notifiers   map[uint16]*notifier
 	notifiersmu *sync.Mutex
 }
 
-func newCentral(d *device, u UUID) *central {
+func newCentral(d *device, u constants.UUID) *central {
 	return &central{
 		dev:         d,
 		mtu:         23,
@@ -32,11 +33,11 @@ func (c *central) sendNotification(a *attr, b []byte) (int, error) {
 	data := make([]byte, len(b))
 	copy(data, b) // have to make a copy, why?
 	c.dev.sendCmd(15, xpc.Dict{
-		// "kCBMsgArgUUIDs": [][]byte{reverse(c.uuid.b)}, // connection interrupted
+		// "kCBMsgArgUUIDs": [][]byte{Reverse(c.uuid.b)}, // connection interrupted
 		// "kCBMsgArgUUIDs": [][]byte{c.uuid.b}, // connection interrupted
-		// "kCBMsgArgUUIDs": []xpc.UUID{xpc.UUID(reverse(c.uuid.b))},
+		// "kCBMsgArgUUIDs": []xpc.UUID{xpc.UUID(Reverse(c.uuid.b))},
 		// "kCBMsgArgUUIDs": []xpc.UUID{xpc.UUID(c.uuid.b)},
-		// "kCBMsgArgUUIDs": reverse(c.uuid.b),
+		// "kCBMsgArgUUIDs": Reverse(c.uuid.b),
 		//
 		// FIXME: Sigh... tried to targeting the central, but couldn't get work.
 		// So, broadcast to all subscribed centrals. Either of the following works.

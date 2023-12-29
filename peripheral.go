@@ -3,6 +3,8 @@ package gatt
 import (
 	"errors"
 	"sync"
+
+	"github.com/grutz/gatt/constants"
 )
 
 // Peripheral is the interface that represent a remote peripheral device.
@@ -22,19 +24,19 @@ type Peripheral interface {
 
 	// DiscoverServices discover the specified services of the remote peripheral.
 	// If the specified services is set to nil, all the available services of the remote peripheral are returned.
-	DiscoverServices(s []UUID) ([]*Service, error)
+	DiscoverServices(s []constants.UUID) ([]*Service, error)
 
 	// DiscoverIncludedServices discovers the specified included services of a service.
 	// If the specified services is set to nil, all the included services of the service are returned.
-	DiscoverIncludedServices(ss []UUID, s *Service) ([]*Service, error)
+	DiscoverIncludedServices(ss []constants.UUID, s *Service) ([]*Service, error)
 
 	// DiscoverCharacteristics discovers the specified characteristics of a service.
 	// If the specified characterstics is set to nil, all the characteristic of the service are returned.
-	DiscoverCharacteristics(c []UUID, s *Service) ([]*Characteristic, error)
+	DiscoverCharacteristics(c []constants.UUID, s *Service) ([]*Characteristic, error)
 
 	// DiscoverDescriptors discovers the descriptors of a characteristic.
 	// If the specified descriptors is set to nil, all the descriptors of the characteristic are returned.
-	DiscoverDescriptors(d []UUID, c *Characteristic) ([]*Descriptor, error)
+	DiscoverDescriptors(d []constants.UUID, c *Characteristic) ([]*Descriptor, error)
 
 	// ReadCharacteristic retrieves the value of a specified characteristic.
 	ReadCharacteristic(c *Characteristic) ([]byte, error)

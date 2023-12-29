@@ -1,6 +1,10 @@
 package gatt
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/grutz/gatt/constants"
+)
 
 // TODO:
 func TestAppendField(t *testing.T) {}
@@ -53,43 +57,43 @@ func TestAppendManufacturerData(t *testing.T) {}
 // TODO:
 func TestAppendUUIDFit(t *testing.T) {
 	cases := []struct {
-		uu   []UUID
+		uu   []constants.UUID
 		want string
-		fit  []UUID // if different than uu
+		fit  []constants.UUID // if different than uu
 	}{
 		{
-			uu:   []UUID{UUID16(0xFAFE)},
+			uu:   []constants.UUID{constants.UUID16(0xFAFE)},
 			want: "0201060302fefa",
 		},
 		{
-			uu:   []UUID{UUID16(0xFAFE), UUID16(0xFAF9)},
+			uu:   []constants.UUID{constants.UUID16(0xFAFE), constants.UUID16(0xFAF9)},
 			want: "0201060302fefa0302f9fa",
 		},
 		{
-			uu:   []UUID{MustParseUUID("ABABABABABABABABABABABABABABABAB")},
+			uu:   []constants.UUID{constants.MustParseUUID("ABABABABABABABABABABABABABABABAB")},
 			want: "0201061106abababababababababababababababab",
 		},
 		{
-			uu: []UUID{
-				MustParseUUID("ABABABABABABABABABABABABABABABAB"),
-				MustParseUUID("CDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCD"),
+			uu: []constants.UUID{
+				constants.MustParseUUID("ABABABABABABABABABABABABABABABAB"),
+				constants.MustParseUUID("CDCDCDCDCDCDCDCDCDCDCDCDCDCDCDCD"),
 			},
 			want: "0201061106abababababababababababababababab",
-			fit:  []UUID{MustParseUUID("ABABABABABABABABABABABABABABABAB")},
+			fit:  []constants.UUID{constants.MustParseUUID("ABABABABABABABABABABABABABABABAB")},
 		},
 		{
-			uu: []UUID{
-				UUID16(0xaaaa), UUID16(0xbbbb),
-				UUID16(0xcccc), UUID16(0xdddd),
-				UUID16(0xeeee), UUID16(0xffff),
-				UUID16(0xaaaa), UUID16(0xbbbb),
+			uu: []constants.UUID{
+				constants.UUID16(0xaaaa), constants.UUID16(0xbbbb),
+				constants.UUID16(0xcccc), constants.UUID16(0xdddd),
+				constants.UUID16(0xeeee), constants.UUID16(0xffff),
+				constants.UUID16(0xaaaa), constants.UUID16(0xbbbb),
 			},
 			want: "0201060302aaaa0302bbbb0302cccc0302dddd0302eeee0302ffff0302aaaa",
-			fit: []UUID{
-				UUID16(0xaaaa), UUID16(0xbbbb),
-				UUID16(0xcccc), UUID16(0xdddd),
-				UUID16(0xeeee), UUID16(0xffff),
-				UUID16(0xaaaa),
+			fit: []constants.UUID{
+				constants.UUID16(0xaaaa), constants.UUID16(0xbbbb),
+				constants.UUID16(0xcccc), constants.UUID16(0xdddd),
+				constants.UUID16(0xeeee), constants.UUID16(0xffff),
+				constants.UUID16(0xaaaa),
 			},
 		},
 	}

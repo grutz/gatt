@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/grutz/gatt"
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/examples/service"
 	"github.com/grutz/gatt/linux/cmd"
 )
@@ -90,7 +91,7 @@ func main() {
 			// Add a simple counter service.
 			s2 := service.NewBatteryService()
 			d.AddService(s2)
-			uuids := []gatt.UUID{s1.UUID(), s2.UUID()}
+			uuids := []constants.UUID{s1.UUID(), s2.UUID()}
 
 			// If id is zero, advertise name and services statically.
 			if *id == time.Duration(0) {
@@ -102,7 +103,7 @@ func main() {
 			go func() {
 				for {
 					// Advertise as a RedBear Labs iBeacon.
-					d.AdvertiseIBeacon(gatt.MustParseUUID("5AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), 1, 2, -59)
+					d.AdvertiseIBeacon(constants.MustParseUUID("5AFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"), 1, 2, -59)
 					time.Sleep(*id)
 
 					// Advertise name and services.

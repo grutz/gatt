@@ -8,6 +8,7 @@ import (
 	"log"
 
 	"github.com/grutz/gatt"
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/examples/option"
 )
 
@@ -16,7 +17,7 @@ func onStateChanged(d gatt.Device, s gatt.State) {
 	switch s {
 	case gatt.StatePoweredOn:
 		fmt.Println("scanning...")
-		d.Scan([]gatt.UUID{}, false)
+		d.Scan([]constants.UUID{}, false)
 		return
 	default:
 		d.StopScanning()

@@ -6,6 +6,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/linux/cmd"
 	"github.com/grutz/gatt/linux/evt"
 	"github.com/grutz/gatt/linux/util"
@@ -46,7 +47,7 @@ type PlatData struct {
 	Address     [6]byte
 	Data        []byte
 	Connectable bool
-	EventType   uint8
+	EventType   constants.EventType
 	Scannable   bool
 	RSSI        int8
 
@@ -285,10 +286,10 @@ func (h *HCI) handleAdvertisement(b []byte) {
 	for i := 0; i < int(ep.NumReports); i++ {
 		addr := bdaddr(ep.Address[i])
 		et := ep.EventType[i]
-		connectable := et == AdvInd || et == AdvDirectInd
-		scannable := et == AdvInd || et == AdvScanInd
+		connectable := et == constants.AdvInd || et == constants.AdvDirectInd
+		scannable := et == constants.AdvInd || et == constants.AdvScanInd
 
-		if et == ScanRsp {
+		if et == constants.ScanRsp {
 			h.plistmu.Lock()
 			pd, ok := h.plist[addr]
 			h.plistmu.Unlock()
@@ -303,7 +304,7 @@ func (h *HCI) handleAdvertisement(b []byte) {
 			AddressType: ep.AddressType[i],
 			Address:     ep.Address[i],
 			Data:        ep.Data[i],
-			EventType:   et,
+			EventType:   constants.EventType(et),
 			Connectable: connectable,
 			Scannable:   scannable,
 			RSSI:        ep.RSSI[i],

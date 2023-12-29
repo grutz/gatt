@@ -1,4 +1,4 @@
-package gatt
+package constants
 
 import (
 	"bytes"
@@ -26,15 +26,15 @@ func TestReverse(t *testing.T) {
 	}
 
 	for _, tt := range cases {
-		got := reverse(tt.fwd)
+		got := Reverse(tt.fwd)
 		if !bytes.Equal(got, tt.back) {
-			t.Errorf("reverse(%x): got %x want %x", tt.fwd, got, tt.back)
+			t.Errorf("Reverse(%x): got %x want %x", tt.fwd, got, tt.back)
 		}
 
 		u := UUID{tt.fwd}
-		got = reverse(u.b)
+		got = Reverse(u.B)
 		if !bytes.Equal(got, tt.back) {
-			t.Errorf("UUID.reverse(%x): got %x want %x", tt.fwd, got, tt.back)
+			t.Errorf("UUID.Reverse(%x): got %x want %x", tt.fwd, got, tt.back)
 		}
 	}
 }
@@ -42,13 +42,13 @@ func TestReverse(t *testing.T) {
 func BenchmarkReverseBytes16(b *testing.B) {
 	u := UUID{make([]byte, 2)}
 	for i := 0; i < b.N; i++ {
-		reverse(u.b)
+		Reverse(u.B)
 	}
 }
 
 func BenchmarkReverseBytes128(b *testing.B) {
 	u := UUID{make([]byte, 16)}
 	for i := 0; i < b.N; i++ {
-		reverse(u.b)
+		Reverse(u.B)
 	}
 }

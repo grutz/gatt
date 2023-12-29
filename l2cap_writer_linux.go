@@ -1,6 +1,10 @@
 package gatt
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	"github.com/grutz/gatt/constants"
+)
 
 // l2capWriter helps create l2cap responses.
 // It is not meant to be used with large writes.
@@ -81,11 +85,11 @@ func (w *l2capWriter) WriteUint16Fit(v uint16) bool {
 	return w.WriteFit(b)
 }
 
-// WriteUUIDFit writes uuid using BLE (reversed) encoding.
+// WriteUUIDFit writes uuid using BLE (Reversed) encoding.
 // It reports whether the write succeeded, using the
 // criteria of WriteFit.
-func (w *l2capWriter) WriteUUIDFit(u UUID) bool {
-	return w.WriteFit(u.b)
+func (w *l2capWriter) WriteUUIDFit(u constants.UUID) bool {
+	return w.WriteFit(u.B)
 }
 
 // Writeable returns the number of bytes from b

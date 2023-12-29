@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/xpc"
 )
 
@@ -98,7 +99,7 @@ func (d *device) Advertise(a *AdvPacket) error {
 	return nil
 }
 
-func (d *device) AdvertiseNameAndServices(name string, ss []UUID) error {
+func (d *device) AdvertiseNameAndServices(name string, ss []constants.UUID) error {
 	us := uuidSlice(ss)
 	rsp := d.sendReq(8, xpc.Dict{
 		"kCBAdvDataLocalName":    name,
@@ -132,9 +133,9 @@ func (d *device) AdvertiseIBeaconData(data []byte) error {
 	return nil
 }
 
-func (d *device) AdvertiseIBeacon(u UUID, major, minor uint16, pwr int8) error {
+func (d *device) AdvertiseIBeacon(u constants.UUID, major, minor uint16, pwr int8) error {
 	b := make([]byte, 21)
-	copy(b, reverse(u.b))                     // Big endian
+	copy(b, constants.Reverse(u.B))           // Big endian
 	binary.BigEndian.PutUint16(b[16:], major) // Big endian
 	binary.BigEndian.PutUint16(b[18:], minor) // Big endian
 	b[20] = uint8(pwr)                        // Measured Tx Power
@@ -161,7 +162,7 @@ func (d *device) RemoveAllServices() error {
 }
 
 func (d *device) AddService(s *Service) error {
-	if s.uuid.Equal(attrGAPUUID) || s.uuid.Equal(attrGATTUUID) {
+	if s.uuid.Equal(constants.AttrGAPUUID) || s.uuid.Equal(constants.AttrGATTUUID) {
 		// skip GATT and GAP services
 		return nil
 	}
@@ -171,7 +172,7 @@ func (d *device) AddService(s *Service) error {
 		"kCBMsgArgAttributeIDs":    []int{},
 		"kCBMsgArgCharacteristics": nil,
 		"kCBMsgArgType":            1, // 1 => primary, 0 => excluded
-		"kCBMsgArgUUID":            reverse(s.uuid.b),
+		"kCBMsgArgUUID":            constants.Reverse(s.uuid.B),
 	}
 	d.attrN++
 
@@ -220,7 +221,7 @@ func (d *device) AddService(s *Service) error {
 
 		xc := xpc.Dict{
 			"kCBMsgArgAttributeID":              d.attrN,
-			"kCBMsgArgUUID":                     reverse(c.uuid.b),
+			"kCBMsgArgUUID":                     constants.Reverse(c.uuid.B),
 			"kCBMsgArgAttributePermissions":     perm,
 			"kCBMsgArgCharacteristicProperties": props,
 			"kCBMsgArgData":                     c.value,
@@ -230,7 +231,7 @@ func (d *device) AddService(s *Service) error {
 
 		xds := xpc.Array{}
 		for _, d := range c.Descriptors() {
-			if d.uuid.Equal(attrClientCharacteristicConfigUUID) {
+			if d.uuid.Equal(constants.AttrClientCharacteristicConfigUUID) {
 				// skip CCCD
 				continue
 			}
@@ -242,7 +243,7 @@ func (d *device) AddService(s *Service) error {
 			}
 			xd := xpc.Dict{
 				"kCBMsgArgData": v,
-				"kCBMsgArgUUID": reverse(d.uuid.b),
+				"kCBMsgArgUUID": constants.Reverse(d.uuid.B),
 			}
 			xds = append(xds, xd)
 		}
@@ -266,7 +267,7 @@ func (d *device) SetServices(ss []*Service) error {
 	return nil
 }
 
-func (d *device) Scan(ss []UUID, dup bool) {
+func (d *device) Scan(ss []constants.UUID, dup bool) {
 	args := xpc.Dict{
 		"kCBMsgArgUUIDs": uuidSlice(ss),
 		"kCBMsgArgOptions": xpc.Dict{
@@ -330,7 +331,7 @@ func (d *device) respondToRequest(id int, args xpc.Dict) {
 
 	switch id {
 	case 19: // ReadRequest
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		t := args.MustGetInt("kCBMsgArgTransactionID")
 		a := args.MustGetInt("kCBMsgArgAttributeID")
 		o := args.MustGetInt("kCBMsgArgOffset")
@@ -359,7 +360,7 @@ func (d *device) respondToRequest(id int, args xpc.Dict) {
 		})
 
 	case 20: // WriteRequest
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		t := args.MustGetInt("kCBMsgArgTransactionID")
 		a := 0
 		result := byte(0)
@@ -394,7 +395,7 @@ func (d *device) respondToRequest(id int, args xpc.Dict) {
 		})
 
 	case 21: // subscribed
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		a := args.MustGetInt("kCBMsgArgAttributeID")
 		attr := d.attrs[a]
 		c := newCentral(d, u)
@@ -402,7 +403,7 @@ func (d *device) respondToRequest(id int, args xpc.Dict) {
 		c.startNotify(attr, c.mtu)
 
 	case 22: // unubscribed
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		a := args.MustGetInt("kCBMsgArgAttributeID")
 		attr := d.attrs[a]
 		if c := d.subscribers[u.String()]; c != nil {
@@ -454,7 +455,7 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 		if len(xa) == 0 {
 			return
 		}
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		a := &Advertisement{
 			LocalName:        xa.GetString("kCBAdvDataLocalName", args.GetString("kCBMsgArgName", "")),
 			TxPowerLevel:     xa.GetInt("kCBAdvDataTxPowerLevel", 0),
@@ -465,7 +466,7 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 
 		if xu, ok := xa["kCBAdvDataServiceUUIDs"]; ok {
 			for _, xs := range xu.(xpc.Array) {
-				s := UUID{reverse(xs.([]byte))}
+				s := constants.UUID{constants.Reverse(xs.([]byte))}
 				a.Services = append(a.Services, s)
 			}
 		}
@@ -473,14 +474,14 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 			xsd := xsds.(xpc.Array)
 			for i := 0; i < len(xsd); i += 2 {
 				sd := ServiceData{
-					UUID: UUID{xsd[i].([]byte)},
+					UUID: constants.UUID{xsd[i].([]byte)},
 					Data: xsd[i+1].([]byte),
 				}
 				a.ServiceData = append(a.ServiceData, sd)
 			}
 		}
 		if d.peripheralDiscovered != nil {
-			go d.peripheralDiscovered(&peripheral{id: xpc.UUID(u.b), d: d}, a, rssi)
+			go d.peripheralDiscovered(&peripheral{id: xpc.UUID(u.B), d: d}, a, rssi)
 		}
 
 	case peripheralConnected, peripheralConnected_2:
@@ -493,9 +494,9 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 			break
 		}
 
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		p := &peripheral{
-			id:    xpc.UUID(u.b),
+			id:    xpc.UUID(u.B),
 			d:     d,
 			reqc:  make(chan message),
 			rspc:  make(chan message),
@@ -512,7 +513,7 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 		}
 
 	case peripheralDisconnected:
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		d.plistmu.Lock()
 		p := d.plist[u.String()]
 		delete(d.plist, u.String())
@@ -537,7 +538,7 @@ func (d *device) HandleXpcEvent(event xpc.Dict, err error) {
 		descriptorRead,
 		descriptorWritten:
 
-		u := UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
+		u := constants.UUID{args.MustGetUUID("kCBMsgArgDeviceUUID")}
 		d.plistmu.Lock()
 		p := d.plist[u.String()]
 		d.plistmu.Unlock()

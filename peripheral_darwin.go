@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/xpc"
 )
 
@@ -28,25 +29,25 @@ type peripheral struct {
 	quitc chan struct{}
 }
 
-func NewPeripheral(u UUID) Peripheral { return &peripheral{id: xpc.UUID(u.b)} }
+func NewPeripheral(u constants.UUID) Peripheral { return &peripheral{id: xpc.UUID(u.B)} }
 
 func (p *peripheral) Device() Device       { return p.d }
 func (p *peripheral) ID() string           { return p.id.String() }
 func (p *peripheral) Name() string         { return p.name }
 func (p *peripheral) Services() []*Service { return p.svcs }
 
-func (p *peripheral) DiscoverServices(ss []UUID) ([]*Service, error) {
+func (p *peripheral) DiscoverServices(ss []constants.UUID) ([]*Service, error) {
 	rsp := p.sendReq(45, xpc.Dict{
 		"kCBMsgArgDeviceUUID": p.id,
 		"kCBMsgArgUUIDs":      uuidSlice(ss),
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return nil, AttEcode(res)
+		return nil, constants.AttEcode(res)
 	}
 	svcs := []*Service{}
 	for _, xss := range rsp["kCBMsgArgServices"].(xpc.Array) {
 		xs := xss.(xpc.Dict)
-		u := MustParseUUID(xs.MustGetHexBytes("kCBMsgArgUUID"))
+		u := constants.MustParseUUID(xs.MustGetHexBytes("kCBMsgArgUUID"))
 		h := uint16(xs.MustGetInt("kCBMsgArgServiceStartHandle"))
 		endh := uint16(xs.MustGetInt("kCBMsgArgServiceEndHandle"))
 		svcs = append(svcs, &Service{uuid: u, h: h, endh: endh})
@@ -55,7 +56,7 @@ func (p *peripheral) DiscoverServices(ss []UUID) ([]*Service, error) {
 	return svcs, nil
 }
 
-func (p *peripheral) DiscoverIncludedServices(ss []UUID, s *Service) ([]*Service, error) {
+func (p *peripheral) DiscoverIncludedServices(ss []constants.UUID, s *Service) ([]*Service, error) {
 	rsp := p.sendReq(60, xpc.Dict{
 		"kCBMsgArgDeviceUUID":         p.id,
 		"kCBMsgArgServiceStartHandle": s.h,
@@ -63,13 +64,13 @@ func (p *peripheral) DiscoverIncludedServices(ss []UUID, s *Service) ([]*Service
 		"kCBMsgArgUUIDs":              uuidSlice(ss),
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return nil, AttEcode(res)
+		return nil, constants.AttEcode(res)
 	}
 	// TODO
 	return nil, notImplemented
 }
 
-func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characteristic, error) {
+func (p *peripheral) DiscoverCharacteristics(cs []constants.UUID, s *Service) ([]*Characteristic, error) {
 	rsp := p.sendReq(62, xpc.Dict{
 		"kCBMsgArgDeviceUUID":         p.id,
 		"kCBMsgArgServiceStartHandle": s.h,
@@ -77,11 +78,11 @@ func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characte
 		"kCBMsgArgUUIDs":              uuidSlice(cs),
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return nil, AttEcode(res)
+		return nil, constants.AttEcode(res)
 	}
 	for _, xcs := range rsp.MustGetArray("kCBMsgArgCharacteristics") {
 		xc := xcs.(xpc.Dict)
-		u := MustParseUUID(xc.MustGetHexBytes("kCBMsgArgUUID"))
+		u := constants.MustParseUUID(xc.MustGetHexBytes("kCBMsgArgUUID"))
 		ch := uint16(xc.MustGetInt("kCBMsgArgCharacteristicHandle"))
 		vh := uint16(xc.MustGetInt("kCBMsgArgCharacteristicValueHandle"))
 		props := Property(xc.MustGetInt("kCBMsgArgCharacteristicProperties"))
@@ -91,7 +92,7 @@ func (p *peripheral) DiscoverCharacteristics(cs []UUID, s *Service) ([]*Characte
 	return s.chars, nil
 }
 
-func (p *peripheral) DiscoverDescriptors(ds []UUID, c *Characteristic) ([]*Descriptor, error) {
+func (p *peripheral) DiscoverDescriptors(ds []constants.UUID, c *Characteristic) ([]*Descriptor, error) {
 	rsp := p.sendReq(70, xpc.Dict{
 		"kCBMsgArgDeviceUUID":                p.id,
 		"kCBMsgArgCharacteristicHandle":      c.h,
@@ -100,7 +101,7 @@ func (p *peripheral) DiscoverDescriptors(ds []UUID, c *Characteristic) ([]*Descr
 	})
 	for _, xds := range rsp.MustGetArray("kCBMsgArgDescriptors") {
 		xd := xds.(xpc.Dict)
-		u := MustParseUUID(xd.MustGetHexBytes("kCBMsgArgUUID"))
+		u := constants.MustParseUUID(xd.MustGetHexBytes("kCBMsgArgUUID"))
 		h := uint16(xd.MustGetInt("kCBMsgArgDescriptorHandle"))
 		d := &Descriptor{uuid: u, char: c, h: h}
 		c.descs = append(c.descs, d)
@@ -115,7 +116,7 @@ func (p *peripheral) ReadCharacteristic(c *Characteristic) ([]byte, error) {
 		"kCBMsgArgCharacteristicValueHandle": c.vh,
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return nil, AttEcode(res)
+		return nil, constants.AttEcode(res)
 	}
 	b := rsp.MustGetBytes("kCBMsgArgData")
 	return b, nil
@@ -139,7 +140,7 @@ func (p *peripheral) WriteCharacteristic(c *Characteristic, b []byte, noRsp bool
 	}
 	rsp := p.sendReq(66, args)
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return AttEcode(res)
+		return constants.AttEcode(res)
 	}
 	return nil
 }
@@ -150,7 +151,7 @@ func (p *peripheral) ReadDescriptor(d *Descriptor) ([]byte, error) {
 		"kCBMsgArgDescriptorHandle": d.h,
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return nil, AttEcode(res)
+		return nil, constants.AttEcode(res)
 	}
 	b := rsp.MustGetBytes("kCBMsgArgData")
 	return b, nil
@@ -163,7 +164,7 @@ func (p *peripheral) WriteDescriptor(d *Descriptor, b []byte) error {
 		"kCBMsgArgData":             b,
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return AttEcode(res)
+		return constants.AttEcode(res)
 	}
 	return nil
 }
@@ -185,7 +186,7 @@ func (p *peripheral) SetNotifyValue(c *Characteristic, f func(*Characteristic, [
 		"kCBMsgArgState":                     set,
 	})
 	if res := rsp.MustGetInt("kCBMsgArgResult"); res != 0 {
-		return AttEcode(res)
+		return constants.AttEcode(res)
 	}
 	// To avoid race condition, unregisteration is handled after server responses.
 	if f == nil {
@@ -209,10 +210,10 @@ func (p *peripheral) SetMTU(mtu uint16) error {
 	return errors.New("Not implemented")
 }
 
-func uuidSlice(uu []UUID) [][]byte {
+func uuidSlice(uu []constants.UUID) [][]byte {
 	us := [][]byte{}
 	for _, u := range uu {
-		us = append(us, reverse(u.b))
+		us = append(us, constants.Reverse(u.B))
 	}
 	return us
 }

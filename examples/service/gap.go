@@ -1,15 +1,18 @@
 package service
 
-import "github.com/grutz/gatt"
+import (
+	"github.com/grutz/gatt"
+	"github.com/grutz/gatt/constants"
+)
 
 var (
-	attrGAPUUID = gatt.UUID16(0x1800)
+	attrGAPUUID = constants.UUID16(0x1800)
 
-	attrDeviceNameUUID        = gatt.UUID16(0x2A00)
-	attrAppearanceUUID        = gatt.UUID16(0x2A01)
-	attrPeripheralPrivacyUUID = gatt.UUID16(0x2A02)
-	attrReconnectionAddrUUID  = gatt.UUID16(0x2A03)
-	attrPeferredParamsUUID    = gatt.UUID16(0x2A04)
+	attrDeviceNameUUID        = constants.UUID16(0x2A00)
+	attrAppearanceUUID        = constants.UUID16(0x2A01)
+	attrPeripheralPrivacyUUID = constants.UUID16(0x2A02)
+	attrReconnectionAddrUUID  = constants.UUID16(0x2A03)
+	attrPeferredParamsUUID    = constants.UUID16(0x2A04)
 )
 
 // https://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.gap.appearance.xml

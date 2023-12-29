@@ -1,6 +1,10 @@
 package gatt
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/grutz/gatt/constants"
+)
 
 var notImplemented = errors.New("not implemented")
 
@@ -42,13 +46,13 @@ type Device interface {
 	// AdvertiseNameAndServices advertises device name, and specified service UUIDs.
 	// It tres to fit the UUIDs in the advertising packet as much as possible.
 	// If name doesn't fit in the advertising packet, it will be put in scan response.
-	AdvertiseNameAndServices(name string, ss []UUID) error
+	AdvertiseNameAndServices(name string, ss []constants.UUID) error
 
 	// AdvertiseIBeaconData advertise iBeacon with given manufacturer data.
 	AdvertiseIBeaconData(b []byte) error
 
 	// AdvertisingIbeacon advertises iBeacon with specified parameters.
-	AdvertiseIBeacon(u UUID, major, minor uint16, pwr int8) error
+	AdvertiseIBeacon(u constants.UUID, major, minor uint16, pwr int8) error
 
 	// StopAdvertising stops advertising.
 	StopAdvertising() error
@@ -67,7 +71,7 @@ type Device interface {
 	// If ss is set to nil, all devices scanned are reported.
 	// dup specifies weather duplicated advertisement should be reported or not.
 	// When a remote peripheral is discovered, the PeripheralDiscovered Handler is called.
-	Scan(ss []UUID, dup bool)
+	Scan(ss []constants.UUID, dup bool)
 
 	// StopScanning stops scanning.
 	StopScanning()
