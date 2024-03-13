@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/grutz/gatt/constants"
@@ -1918,11 +1919,11 @@ const (
 
 // Advertising type flags
 const (
-	flagLimitedDiscoverable = 0x01 // LE Limited Discoverable Mode
-	flagGeneralDiscoverable = 0x02 // LE General Discoverable Mode
-	flagLEOnly              = 0x04 // BR/EDR Not Supported. Bit 37 of LMP Feature Mask Definitions (Page 0)
-	flagBothController      = 0x08 // Simultaneous LE and BR/EDR to Same Device Capable (Controller).
-	flagBothHost            = 0x10 // Simultaneous LE and BR/EDR to Same Device Capable (Host).
+	FlagLimitedDiscoverable = 0x01 // LE Limited Discoverable Mode
+	FlagGeneralDiscoverable = 0x02 // LE General Discoverable Mode
+	FlagLEOnly              = 0x04 // BR/EDR Not Supported. Bit 37 of LMP Feature Mask Definitions (Page 0)
+	FlagBothController      = 0x08 // Simultaneous LE and BR/EDR to Same Device Capable (Controller).
+	FlagBothHost            = 0x10 // Simultaneous LE and BR/EDR to Same Device Capable (Host).
 )
 
 type Flags uint8
@@ -1930,25 +1931,25 @@ type Flags uint8
 func (f Flags) String() string {
 	bits := []string{}
 
-	if f&flagLimitedDiscoverable != 0 {
+	if f&FlagLimitedDiscoverable != 0 {
 		bits = append(bits, "Limited Discoverable")
 	}
 
 	/*
-		if f&flagGeneralDiscoverable != 0 {
+		if f&FlagGeneralDiscoverable != 0 {
 			bits = append(bits, "General Discoverable")
 		}
 	*/
 
-	if f&flagLEOnly != 0 {
+	if f&FlagLEOnly != 0 {
 		bits = append(bits, "BR/EDR Not Supported")
 	}
 
-	if f&flagBothController != 0 {
+	if f&FlagBothController != 0 {
 		bits = append(bits, "LE + BR/EDR (controller)")
 	}
 
-	if f&flagBothHost != 0 {
+	if f&FlagBothHost != 0 {
 		bits = append(bits, "LE + BR/EDR (host)")
 	}
 
@@ -1959,6 +1960,23 @@ func (f Flags) String() string {
 type ServiceData struct {
 	UUID constants.UUID
 	Data []byte
+}
+
+type AppearanceData struct {
+	Category    string
+	SubCategory string
+	raw         uint16
+}
+
+func (a *AppearanceData) String() string {
+	return fmt.Sprintf("%s (%s)", a.Category, a.SubCategory)
+}
+
+func (a *AppearanceData) decode(b []byte) error {
+	if len(b) != 2 {
+		return errors.New("invalid appearance data")
+	}
+	return nil
 }
 
 // This is borrowed from core bluetooth.
@@ -1975,8 +1993,10 @@ type Advertisement struct {
 	TxPowerLevel     int
 	Connectable      bool
 	Scannable        bool
-	EventType		 constants.EventType
+	EventType        constants.EventType
 	SolicitedService []constants.UUID
+	Appearance       AppearanceData
+	AddressType      constants.AddressType
 	Raw              []byte
 }
 
@@ -2058,6 +2078,9 @@ func (a *Advertisement) unmarshall(b []byte) error {
 			a.ServiceData = serviceDataList(a.ServiceData, d, 4)
 		case typeServiceData128:
 			a.ServiceData = serviceDataList(a.ServiceData, d, 16)
+		case typeAppearance:
+			a.Appearance = AppearanceData{raw: binary.LittleEndian.Uint16(d)}
+
 		default:
 		}
 		b = b[1+l:]

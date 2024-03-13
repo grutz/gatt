@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/linux/util"
 )
 
@@ -289,7 +290,7 @@ type LEAdvertisingReportEP struct {
 	SubeventCode uint8
 	NumReports   uint8
 	EventType    []uint8
-	AddressType  []uint8
+	AddressType  []constants.AddressType
 	Address      [][6]byte
 	Length       []uint8
 	Data         [][]byte
@@ -307,7 +308,7 @@ func (e *LEAdvertisingReportEP) Unmarshal(b []byte) error {
 	n := int(e.NumReports)
 
 	e.EventType = make([]uint8, n)
-	e.AddressType = make([]uint8, n)
+	e.AddressType = make([]constants.AddressType, n)
 	e.Address = make([][6]byte, n)
 	e.Length = make([]uint8, n)
 	e.Data = make([][]byte, n)
@@ -322,7 +323,7 @@ func (e *LEAdvertisingReportEP) Unmarshal(b []byte) error {
 		b = b[1:]
 	}
 	for i := 0; i < n; i++ {
-		e.AddressType[i] = o.Uint8(b)
+		e.AddressType[i] = constants.AddressType(o.Uint8(b))
 		b = b[1:]
 	}
 	for i := 0; i < n; i++ {

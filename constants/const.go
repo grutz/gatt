@@ -185,3 +185,27 @@ const (
 	AdvNonconnInd        // Non connectable undirected advertising (ADV_NONCONN_IND)
 	ScanRsp              // Scan Response (SCAN_RSP)
 )
+
+// Address Types
+const (
+	AddressTypePublic         = 0x00
+	AddressTypeRandom         = 0x01
+	AddressTypePublicIdentity = 0x02
+	AddressTypeRandomStatic   = 0x03
+)
+
+type AddressType uint8
+
+func (a *AddressType) String() string {
+	switch *a {
+	case AddressTypePublic:
+		return "Public"
+	case AddressTypeRandom:
+		return "Random"
+	case AddressTypePublicIdentity:
+		return "Public Identity"
+	case AddressTypeRandomStatic:
+		return "Random Static"
+	}
+	return "Unknown"
+}

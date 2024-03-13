@@ -94,6 +94,7 @@ func (d *device) Init(f func(Device, State)) error {
 		a.Connectable = pd.Connectable
 		a.Scannable = pd.Scannable
 		a.EventType = pd.EventType
+		a.AddressType = pd.AddressType
 		p := &peripheral{pd: pd, d: d}
 		if d.peripheralDiscovered != nil {
 			pd.Name = a.LocalName
@@ -146,7 +147,7 @@ func (d *device) Advertise(a *AdvPacket) error {
 
 func (d *device) AdvertiseNameAndServices(name string, uu []constants.UUID) error {
 	a := &AdvPacket{}
-	a.AppendFlags(flagGeneralDiscoverable | flagLEOnly)
+	a.AppendFlags(FlagGeneralDiscoverable | FlagLEOnly)
 	a.AppendUUIDFit(uu)
 
 	if len(a.b)+len(name)+2 < MaxEIRPacketLength {
@@ -166,7 +167,7 @@ func (d *device) AdvertiseNameAndServices(name string, uu []constants.UUID) erro
 
 func (d *device) AdvertiseIBeaconData(b []byte) error {
 	a := &AdvPacket{}
-	a.AppendFlags(flagGeneralDiscoverable | flagLEOnly)
+	a.AppendFlags(FlagGeneralDiscoverable | FlagLEOnly)
 	a.AppendManufacturerData(0x004C, b)
 
 	return d.Advertise(a)

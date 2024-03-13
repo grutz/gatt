@@ -43,7 +43,7 @@ type bdaddr [6]byte
 
 type PlatData struct {
 	Name        string
-	AddressType uint8
+	AddressType constants.AddressType
 	Address     [6]byte
 	Data        []byte
 	Connectable bool
@@ -146,18 +146,18 @@ func (h *HCI) SetScanEnable(en bool, dup bool) error {
 func (h *HCI) Connect(pd *PlatData) error {
 	h.c.Send(
 		cmd.LECreateConn{
-			LEScanInterval:        0x0004,         // N x 0.625ms
-			LEScanWindow:          0x0004,         // N x 0.625ms
-			InitiatorFilterPolicy: 0x00,           // white list not used
-			PeerAddressType:       pd.AddressType, // public or random
-			PeerAddress:           pd.Address,     //
-			OwnAddressType:        0x00,           // public
-			ConnIntervalMin:       0x0006,         // N x 0.125ms
-			ConnIntervalMax:       0x0006,         // N x 0.125ms
-			ConnLatency:           0x0000,         //
-			SupervisionTimeout:    0x0048,         // N x 10ms
-			MinimumCELength:       0x0000,         // N x 0.625ms
-			MaximumCELength:       0x0000,         // N x 0.625ms
+			LEScanInterval:        0x0004,                // N x 0.625ms
+			LEScanWindow:          0x0004,                // N x 0.625ms
+			InitiatorFilterPolicy: 0x00,                  // white list not used
+			PeerAddressType:       uint8(pd.AddressType), // public or random
+			PeerAddress:           pd.Address,            //
+			OwnAddressType:        0x00,                  // public
+			ConnIntervalMin:       0x0006,                // N x 0.125ms
+			ConnIntervalMax:       0x0006,                // N x 0.125ms
+			ConnLatency:           0x0000,                //
+			SupervisionTimeout:    0x0048,                // N x 10ms
+			MinimumCELength:       0x0000,                // N x 0.625ms
+			MaximumCELength:       0x0000,                // N x 0.625ms
 		})
 	return nil
 }
