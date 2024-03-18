@@ -90,7 +90,11 @@ func (d *device) Init(f func(Device, State)) error {
 	}
 	d.hci.AdvertisementHandler = func(pd *linux.PlatData) {
 		a := &Advertisement{}
-		a.unmarshall(pd.Data)
+		err := a.unmarshall(pd.Data)
+		if err != nil {
+			log.Printf("unmarshall advertisement error: %v", err)
+			return
+		}
 		a.Connectable = pd.Connectable
 		a.Scannable = pd.Scannable
 		a.EventType = pd.EventType
