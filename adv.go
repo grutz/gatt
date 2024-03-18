@@ -2029,14 +2029,20 @@ func (a *Advertisement) unmarshall(b []byte) error {
 		if len(b) < 2 {
 			return errors.New("invalid advertise data")
 		}
+
+		// l is the length of the field, t is the type of the field.
 		l, t := b[0], b[1]
-		if int(l) < 1 || len(b) < int(1+l) {
+
+		// Check if the length value is valid from the packet.
+		if int(l) < 1 || len(b) < int(1+l) || int(1+l) < 2 {
 			return errors.New("invalid advertise data")
 		}
 
+		// extract rest of the data from the packet.
 		d := b[2 : 1+l]
 		a.Raw = d
 
+		// Depending upon the field type, decode the data.
 		switch t {
 		case typeFlags:
 			a.Flags = Flags(d[0])
