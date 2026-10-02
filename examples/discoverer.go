@@ -18,7 +18,7 @@ func onStateChanged(d gatt.Device, s gatt.State) {
 	switch s {
 	case gatt.StatePoweredOn:
 		fmt.Println("scanning...")
-		d.Scan(nil, false)
+		d.Scan(nil, true)
 		return
 	default:
 		d.StopScanning()
