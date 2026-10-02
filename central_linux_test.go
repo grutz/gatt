@@ -255,3 +255,37 @@ func TestServing(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleReqShortPDU(t *testing.T) {
+	c := newCentral(nil, net.HardwareAddr{1, 2, 3, 4, 5, 6}, &testHandler{})
+	for op, n := range minReqLen {
+		if op == constants.AttOpWriteCmd {
+			continue
+		}
+		for l := 0; l < n; l++ {
+			req := append([]byte{op}, make([]byte, l)...)
+			rsp := c.handleReq(req)
+			want := constants.AttErrorRsp(op, 0, constants.AttEcodeInvalidPDU)
+			if string(rsp) != string(want) {
+				t.Errorf("op 0x%02x len %d: rsp = [% X], want [% X]", op, l, rsp, want)
+			}
+		}
+	}
+	if rsp := c.handleReq([]byte{constants.AttOpWriteCmd, 0x01}); rsp != nil {
+		t.Errorf("short write command got response [% X]", rsp)
+	}
+	if rsp := c.handleReq(nil); rsp != nil {
+		t.Errorf("empty request got response [% X]", rsp)
+	}
+}
+
+func TestHandleReqRecoversFromPanic(t *testing.T) {
+	// A nil attribute table makes the handler panic; the peer must just get
+	// an error response.
+	c := newCentral(nil, net.HardwareAddr{1, 2, 3, 4, 5, 6}, &testHandler{})
+	rsp := c.handleReq([]byte{constants.AttOpReadReq, 0x01, 0x00})
+	want := constants.AttErrorRsp(constants.AttOpReadReq, 0, constants.AttEcodeUnlikely)
+	if string(rsp) != string(want) {
+		t.Errorf("rsp = [% X], want [% X]", rsp, want)
+	}
+}

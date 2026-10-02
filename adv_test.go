@@ -112,3 +112,41 @@ func TestAppendUUIDFit(t *testing.T) {
 	// 	}
 	// }
 }
+
+func TestUnmarshallMalformed(t *testing.T) {
+	for _, b := range [][]byte{
+		{0x01, 0x01},                   // flags, empty
+		{0x01, 0x0a},                   // tx power, empty
+		{0x02, 0x19, 0x01},             // appearance, 1 byte
+		{0x02, 0x16, 0x01},             // service data 16, 1 byte
+		{0x02, 0x20, 0x01},             // service data 32, 1 byte
+		{0x04, 0x03, 0x01, 0x02, 0x03}, // uuid16 list with trailing byte
+	} {
+		a := &Advertisement{}
+		if err := a.unmarshall(b); err != nil {
+			t.Errorf("% X: unexpected error %v", b, err)
+		}
+	}
+}
+
+func TestUnmarshallTxPowerSigned(t *testing.T) {
+	a := &Advertisement{}
+	if err := a.unmarshall([]byte{0x02, 0x0a, 0xF4}); err != nil {
+		t.Fatal(err)
+	}
+	if a.TxPowerLevel != -12 {
+		t.Errorf("TxPowerLevel = %d, want -12", a.TxPowerLevel)
+	}
+}
+
+func TestUnmarshallServiceDataWidth(t *testing.T) {
+	a := &Advertisement{}
+	// 32-bit UUID 01020304 followed by payload AA BB.
+	if err := a.unmarshall([]byte{0x07, 0x20, 0x01, 0x02, 0x03, 0x04, 0xAA, 0xBB}); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.ServiceData) != 1 || len(a.ServiceData[0].Data) != 2 ||
+		a.ServiceData[0].Data[0] != 0xAA || a.ServiceData[0].Data[1] != 0xBB {
+		t.Errorf("service data = %+v", a.ServiceData)
+	}
+}

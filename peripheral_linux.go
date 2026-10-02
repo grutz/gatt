@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/linux"
@@ -42,6 +43,9 @@ func (p *peripheral) Name() string         { return p.pd.Name }
 func (p *peripheral) Services() []*Service { return p.svcs }
 
 func finish(op byte, h uint16, b []byte) (bool, error) {
+	if len(b) < 1 || (b[0] == constants.AttOpError && len(b) < 5) {
+		return true, ErrInvalidLength
+	}
 	done := b[0] == constants.AttOpError && b[1] == op && b[2] == byte(h) && b[3] == byte(h>>8)
 	var err error
 	if b[0] == constants.AttOpError {
@@ -75,17 +79,24 @@ func (p *peripheral) DiscoverServices(ds []constants.UUID) ([]*Service, error) {
 		if done {
 			break
 		}
+		if len(b) < 2 {
+			return nil, ErrInvalidLength
+		}
 		b = b[1:]
 		l, b := int(b[0]), b[1:]
 		switch {
-		case l == 6 && (len(b)%6 == 0):
-		case l == 20 && (len(b)%20 == 0):
+		case l == 6 && len(b) > 0 && (len(b)%6 == 0):
+		case l == 20 && len(b) > 0 && (len(b)%20 == 0):
 		default:
 			return nil, ErrInvalidLength
 		}
 
 		for len(b) != 0 {
 			endh := binary.LittleEndian.Uint16(b[2:4])
+			if endh < start {
+				// The peer must make progress, or we'd loop forever.
+				return nil, ErrInvalidLength
+			}
 			u := constants.UUID{b[4:l]}
 
 			if constants.UUIDContains(ds, u) {
@@ -128,11 +139,14 @@ func (p *peripheral) DiscoverCharacteristics(cs []constants.UUID, s *Service) ([
 			break
 		}
 
+		if len(b) < 2 {
+			return nil, ErrInvalidLength
+		}
 		b = b[1:]
 		l, b := int(b[0]), b[1:]
 		switch {
-		case l == 7 && (len(b)%7 == 0):
-		case l == 21 && (len(b)%21 == 0):
+		case l == 7 && len(b) > 0 && (len(b)%7 == 0):
+		case l == 21 && len(b) > 0 && (len(b)%21 == 0):
 		default:
 			return nil, ErrInvalidLength
 		}
@@ -141,6 +155,10 @@ func (p *peripheral) DiscoverCharacteristics(cs []constants.UUID, s *Service) ([
 			h := binary.LittleEndian.Uint16(b[:2])
 			props := Property(b[2])
 			vh := binary.LittleEndian.Uint16(b[3:5])
+			if h < start || vh < h {
+				// The peer must make progress, or we'd loop forever.
+				return nil, ErrInvalidLength
+			}
 			u := constants.UUID{b[5:l]}
 			s := searchService(p.svcs, h, vh)
 			if s == nil {
@@ -158,7 +176,7 @@ func (p *peripheral) DiscoverCharacteristics(cs []constants.UUID, s *Service) ([
 				s.chars = append(s.chars, c)
 			}
 			b = b[l:]
-			done = vh == s.endh
+			done = vh >= s.endh
 			start = vh + 1
 			if prev != nil {
 				prev.endh = c.h - 1
@@ -191,14 +209,17 @@ func (p *peripheral) DiscoverDescriptors(ds []constants.UUID, c *Characteristic)
 		if done {
 			break
 		}
+		if len(b) < 2 {
+			return nil, ErrInvalidLength
+		}
 		b = b[1:]
 
 		var l int
 		f, b := int(b[0]), b[1:]
 		switch {
-		case f == 1 && (len(b)%4 == 0):
+		case f == 1 && len(b) > 0 && (len(b)%4 == 0):
 			l = 4
-		case f == 2 && (len(b)%18 == 0):
+		case f == 2 && len(b) > 0 && (len(b)%18 == 0):
 			l = 18
 		default:
 			return nil, ErrInvalidLength
@@ -206,6 +227,10 @@ func (p *peripheral) DiscoverDescriptors(ds []constants.UUID, c *Characteristic)
 
 		for len(b) != 0 {
 			h := binary.LittleEndian.Uint16(b[:2])
+			if h < start {
+				// The peer must make progress, or we'd loop forever.
+				return nil, ErrInvalidLength
+			}
 			u := constants.UUID{b[2:l]}
 			d := &Descriptor{uuid: u, h: h, char: c}
 			if constants.UUIDContains(ds, u) {
@@ -215,7 +240,7 @@ func (p *peripheral) DiscoverDescriptors(ds []constants.UUID, c *Characteristic)
 				c.cccd = d
 			}
 			b = b[l:]
-			done = h == c.endh
+			done = h >= c.endh
 			start = h + 1
 		}
 	}
@@ -267,6 +292,10 @@ func (p *peripheral) ReadLongCharacteristic(c *Characteristic) ([]byte, error) {
 		b = b[1:]
 		if len(b) == 0 {
 			break
+		}
+		if buf.Len()+len(b) > 0xFFFF {
+			// Attribute offsets are 16 bits; a longer value is bogus.
+			return buf.Bytes(), ErrInvalidLength
 		}
 		buf.Write(b)
 		off += uint16(len(b))
@@ -378,19 +407,57 @@ type message struct {
 	rspc chan []byte
 }
 
+// attTimeout is the ATT transaction timeout (Core spec Vol 3, Part F, 3.3.3).
+// It is a variable so tests can shorten it.
+var attTimeout = 30 * time.Second
+
+// errRsp is the response handed to callers when the connection goes away
+// while they wait; it makes finish() report an error rather than hanging.
+func (p *peripheral) errRsp(op byte) []byte {
+	return constants.AttErrorRsp(op, 0x0000, constants.AttEcodeUnlikely)
+}
+
 func (p *peripheral) sendCmd(op byte, b []byte) {
-	p.reqc <- message{op: op, b: b}
+	select {
+	case p.reqc <- message{op: op, b: b}:
+	case <-p.quitc:
+	}
 }
 
 func (p *peripheral) sendReq(op byte, b []byte) []byte {
-	m := message{op: op, b: b, rspc: make(chan []byte)}
-	p.reqc <- m
-	return <-m.rspc
+	m := message{op: op, b: b, rspc: make(chan []byte, 1)}
+	select {
+	case p.reqc <- m:
+	case <-p.quitc:
+		return p.errRsp(op)
+	}
+	timeout := time.NewTimer(attTimeout)
+	defer timeout.Stop()
+	select {
+	case r := <-m.rspc:
+		return r
+	case <-p.quitc:
+		return p.errRsp(op)
+	case <-timeout.C:
+		log.Printf("request 0x%02x timed out", op)
+		return p.errRsp(op)
+	}
+}
+
+// validRsp reports whether r is well-formed enough to be handed to callers:
+// non-empty, and an ATT error response carries all of its fields.
+func validRsp(r []byte) bool {
+	if len(r) == 0 {
+		return false
+	}
+	return r[0] != constants.AttOpError || len(r) >= 5
 }
 
 func (p *peripheral) loop() {
-	// Serialize the request.
-	rspc := make(chan []byte)
+	// Serialize the request. Buffered so a response that arrives right after
+	// the request is written isn't lost; unsolicited ones are dropped when full
+	// rather than blocking the read loop (and notifications) forever.
+	rspc := make(chan []byte, 4)
 
 	// Dequeue request loop
 	go func() {
@@ -402,16 +469,25 @@ func (p *peripheral) loop() {
 					break
 				}
 
+				timeout := time.NewTimer(attTimeout)
+			wait:
 				for {
-					r := <-rspc
-					reqOp, rspOp := req.b[0], r[0]
-					if rspOp == constants.AttRspFor[reqOp] || (rspOp == constants.AttOpError && r[1] == reqOp) {
-						req.rspc <- r
-						break
+					select {
+					case r := <-rspc:
+						reqOp, rspOp := req.b[0], r[0]
+						if rspOp == constants.AttRspFor[reqOp] || (rspOp == constants.AttOpError && r[1] == reqOp) {
+							req.rspc <- r
+							break wait
+						}
+						log.Printf("Request 0x%02x got a mismatched response: 0x%02x", reqOp, rspOp)
+						p.l2c.Write(constants.AttErrorRsp(rspOp, 0x0000, constants.AttEcodeReqNotSupp))
+					case <-timeout.C:
+						break wait // sendReq gives up at the same time
+					case <-p.quitc:
+						return
 					}
-					log.Printf("Request 0x%02x got a mismatched response: 0x%02x", reqOp, rspOp)
-					p.l2c.Write(constants.AttErrorRsp(rspOp, 0x0000, constants.AttEcodeReqNotSupp))
 				}
+				timeout.Stop()
 			case <-p.quitc:
 				return
 			}
@@ -435,10 +511,22 @@ func (p *peripheral) loop() {
 
 		if (b[0] != constants.AttOpHandleNotify) && (b[0] != constants.AttOpHandleInd) {
 			log.Printf("response 0x%x", b[0])
-			rspc <- b
+			if !validRsp(b) {
+				log.Printf("dropping malformed response [% X]", b)
+				continue
+			}
+			select {
+			case rspc <- b:
+			default:
+				log.Printf("dropping unsolicited response 0x%x", b[0])
+			}
 			continue
 		}
 
+		if len(b) < 3 {
+			log.Printf("dropping malformed notification [% X]", b)
+			continue
+		}
 		h := binary.LittleEndian.Uint16(b[1:3])
 		f := p.sub.fn(h)
 		if f == nil {
@@ -465,7 +553,10 @@ func (p *peripheral) SetMTU(mtu uint16) error {
 
 	b = p.sendReq(op, b)
 	done, err := finish(op, h, b)
-	if !done {
+	if !done && len(b) < 3 {
+		return ErrInvalidLength
+	}
+	if !done && b[0] == constants.AttOpMtuRsp {
 		serverMTU := binary.LittleEndian.Uint16(b[1:3])
 		if serverMTU < mtu {
 			mtu = serverMTU

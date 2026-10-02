@@ -2006,13 +2006,8 @@ func (a *Advertisement) unmarshall(b []byte) error {
 	// Utility function for creating a list of uuids.
 	uuidList := func(u []constants.UUID, d []byte, w int) []constants.UUID {
 		// https://github.com/grutz/gatt/issues/8
-		defer func() {
-			if recover() != nil {
-
-			}
-		}()
-
-		for len(d) > 0 {
+		// Ignore a trailing partial UUID rather than slicing past the end.
+		for len(d) >= w {
 			u = append(u, constants.UUID{d[:w]})
 			d = d[w:]
 		}
@@ -2020,8 +2015,11 @@ func (a *Advertisement) unmarshall(b []byte) error {
 	}
 
 	serviceDataList := func(sd []ServiceData, d []byte, w int) []ServiceData {
+		if len(d) < w {
+			return sd
+		}
 		serviceData := ServiceData{constants.UUID{d[:w]}, make([]byte, len(d)-w)}
-		copy(serviceData.Data, d[2:])
+		copy(serviceData.Data, d[w:])
 		return append(sd, serviceData)
 	}
 
@@ -2044,7 +2042,9 @@ func (a *Advertisement) unmarshall(b []byte) error {
 		// Depending upon the field type, decode the data.
 		switch t {
 		case typeFlags:
-			a.Flags = Flags(d[0])
+			if len(d) >= 1 {
+				a.Flags = Flags(d[0])
+			}
 		case typeSomeUUID16:
 			a.Services = uuidList(a.Services, d, 2)
 		case typeAllUUID16:
@@ -2062,7 +2062,9 @@ func (a *Advertisement) unmarshall(b []byte) error {
 		case typeCompleteName:
 			a.LocalName = zeroTruncate(d)
 		case typeTxPower:
-			a.TxPowerLevel = int(d[0])
+			if len(d) >= 1 {
+				a.TxPowerLevel = int(int8(d[0])) // signed dBm
+			}
 		case typeServiceSol16:
 			a.SolicitedService = uuidList(a.SolicitedService, d, 2)
 		case typeServiceSol128:
@@ -2084,7 +2086,9 @@ func (a *Advertisement) unmarshall(b []byte) error {
 		case typeServiceData128:
 			a.ServiceData = serviceDataList(a.ServiceData, d, 16)
 		case typeAppearance:
-			a.Appearance = AppearanceData{raw: binary.LittleEndian.Uint16(d)}
+			if len(d) >= 2 {
+				a.Appearance = AppearanceData{raw: binary.LittleEndian.Uint16(d)}
+			}
 
 		default:
 		}

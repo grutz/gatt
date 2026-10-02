@@ -3,6 +3,7 @@ package gatt
 import (
 	"encoding/binary"
 	"io"
+	"log"
 	"net"
 	"sync"
 
@@ -72,12 +73,46 @@ func (c *central) loop() {
 	}
 }
 
+// minReqLen is the minimum length of the parameters (everything after the
+// opcode) of each ATT request that handleReq dispatches.
+var minReqLen = map[byte]int{
+	constants.AttOpMtuReq:             2,
+	constants.AttOpFindInfoReq:        4,
+	constants.AttOpFindByTypeValueReq: 6,
+	constants.AttOpReadByTypeReq:      6,
+	constants.AttOpReadReq:            2,
+	constants.AttOpReadBlobReq:        4,
+	constants.AttOpReadByGroupReq:     6,
+	constants.AttOpWriteReq:           2,
+	constants.AttOpWriteCmd:           2,
+}
+
 // handleReq dispatches a raw request from the central shim
 // to an appropriate handler, based on its type.
-// It panics if len(b) == 0.
-func (c *central) handleReq(b []byte) []byte {
-	var resp []byte
-	switch reqType, req := b[0], b[1:]; reqType {
+// Requests that are too short for their type are rejected, and a panic in a
+// handler is turned into an error response so a peer can't take down the
+// connection loop.
+func (c *central) handleReq(b []byte) (resp []byte) {
+	if len(b) == 0 {
+		return nil
+	}
+	reqType, req := b[0], b[1:]
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("gatt: error handling ATT request 0x%02x: %v", reqType, err)
+			resp = constants.AttErrorRsp(reqType, 0x0000, constants.AttEcodeUnlikely)
+			if reqType == constants.AttOpWriteCmd {
+				resp = nil // commands don't get responses
+			}
+		}
+	}()
+	if n, ok := minReqLen[reqType]; ok && len(req) < n {
+		if reqType == constants.AttOpWriteCmd {
+			return nil
+		}
+		return constants.AttErrorRsp(reqType, 0x0000, constants.AttEcodeInvalidPDU)
+	}
+	switch reqType {
 	case constants.AttOpMtuReq:
 		resp = c.handleMTU(req)
 	case constants.AttOpFindInfoReq:

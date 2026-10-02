@@ -1,10 +1,12 @@
 package linux
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/grutz/gatt/constants"
 	"github.com/grutz/gatt/linux/cmd"
@@ -37,6 +39,8 @@ type HCI struct {
 
 	adv   bool
 	advmu *sync.Mutex
+
+	advsem chan struct{}
 }
 
 type bdaddr [6]byte
@@ -52,7 +56,18 @@ type PlatData struct {
 	RSSI        int8
 
 	Conn io.ReadWriteCloser
+
+	seen time.Time // when the advertisement was last seen, for plist eviction
 }
+
+const (
+	// maxPlist bounds the number of advertisers remembered for connecting.
+	// Without it, spoofed random addresses grow the map without limit.
+	maxPlist = 1024
+	// maxAdvHandlers bounds concurrent advertisement handlers; reports
+	// beyond it are dropped.
+	maxAdvHandlers = 64
+)
 
 func NewHCI(devID int, chk bool, maxConn int) (*HCI, error) {
 	d, err := newDevice(devID, chk)
@@ -81,6 +96,8 @@ func NewHCI(devID int, chk bool, maxConn int) (*HCI, error) {
 		conns:   map[uint16]*conn{},
 
 		advmu: &sync.Mutex{},
+
+		advsem: make(chan struct{}, maxAdvHandlers),
 	}
 
 	e.HandleEvent(evt.LEMeta, evt.HandlerFunc(h.handleLEMeta))
@@ -275,6 +292,14 @@ func (h *HCI) resetDevice() error {
 }
 
 func (h *HCI) handleAdvertisement(b []byte) {
+	// This runs in its own goroutine, so a panic here (e.g. from a malformed
+	// advertisement or a handler) would not be caught by handleLEMeta.
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("error while handling advertisement: %v", err)
+		}
+	}()
+
 	// If no one is interested, don't bother.
 	if h.AdvertisementHandler == nil {
 		return
@@ -294,8 +319,12 @@ func (h *HCI) handleAdvertisement(b []byte) {
 			pd, ok := h.plist[addr]
 			h.plistmu.Unlock()
 			if ok {
-				pd.Data = append(pd.Data, ep.Data[i]...)
-				h.AdvertisementHandler(pd)
+				// Report a copy so the stored advertisement keeps its own
+				// event type and data, and the result is labeled SCAN_RSP.
+				rsp := *pd
+				rsp.Data = append(append([]byte(nil), pd.Data...), ep.Data[i]...)
+				rsp.EventType = constants.EventType(et)
+				h.AdvertisementHandler(&rsp)
 			}
 			continue
 		}
@@ -308,12 +337,30 @@ func (h *HCI) handleAdvertisement(b []byte) {
 			Connectable: connectable,
 			Scannable:   scannable,
 			RSSI:        ep.RSSI[i],
+			seen:        time.Now(),
 		}
 		h.plistmu.Lock()
-		h.plist[addr] = pd
+		h.storePlistLocked(addr, pd)
 		h.plistmu.Unlock()
 		h.AdvertisementHandler(pd)
 	}
+}
+
+// storePlistLocked records pd for addr, evicting the least recently seen
+// advertiser when the table is full. plistmu must be held.
+func (h *HCI) storePlistLocked(addr bdaddr, pd *PlatData) {
+	if _, ok := h.plist[addr]; !ok && len(h.plist) >= maxPlist {
+		var oldest bdaddr
+		var oldestSeen time.Time
+		first := true
+		for a, p := range h.plist {
+			if first || p.seen.Before(oldestSeen) {
+				oldest, oldestSeen, first = a, p.seen, false
+			}
+		}
+		delete(h.plist, oldest)
+	}
+	h.plist[addr] = pd
 }
 
 func (h *HCI) handleNumberOfCompletedPkts(b []byte) error {
@@ -418,6 +465,13 @@ func (h *HCI) handleLEMeta(b []byte) error {
 		}
 	}()
 
+	if len(b) == 0 {
+		return errors.New("empty LE meta event")
+	}
+	// b aliases a pooled read buffer that is recycled as soon as Dispatch
+	// returns, so give the goroutines below their own copy.
+	b = append([]byte(nil), b...)
+
 	code := evt.LEEventCode(b[0])
 	switch code {
 	case evt.LEConnectionComplete:
@@ -425,7 +479,15 @@ func (h *HCI) handleLEMeta(b []byte) error {
 	case evt.LEConnectionUpdateComplete:
 		// anything to do here?
 	case evt.LEAdvertisingReport:
-		go h.handleAdvertisement(b)
+		select {
+		case h.advsem <- struct{}{}:
+			go func() {
+				defer func() { <-h.advsem }()
+				h.handleAdvertisement(b)
+			}()
+		default:
+			// overloaded (e.g. an advertising flood): drop the report
+		}
 	// case evt.LEReadRemoteUsedFeaturesComplete:
 	case evt.LELTKRequest:
 		go h.handleLTKRequest(b)

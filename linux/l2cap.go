@@ -51,33 +51,75 @@ func newConn(hci *HCI, hh uint16) *conn {
 	return c
 }
 
+// maxL2capSDU is the largest L2CAP payload that is reassembled. Anything larger
+// is dropped.
+const maxL2capSDU = 512
+
+// reassembler rebuilds L2CAP SDUs from (possibly fragmented) ACL packets.
+// It never panics or blocks on malformed input; bad frames are dropped.
+type reassembler struct {
+	cid     uint16
+	tlen    int
+	buf     []byte
+	pending bool
+}
+
+// push feeds one ACL packet into the reassembler. When a complete SDU is
+// available it is returned with its channel ID and ok set to true.
+func (r *reassembler) push(a *aclData) (cid uint16, sdu []byte, ok bool) {
+	if a.flags&0x1 != 0 { // continuation fragment
+		if !r.pending {
+			return 0, nil, false
+		}
+		if len(r.buf)+len(a.b) > r.tlen {
+			r.pending = false // overshoots the advertised length
+			return 0, nil, false
+		}
+		r.buf = append(r.buf, a.b...)
+	} else { // start of a new SDU; drops any incomplete one
+		r.pending = false
+		if len(a.b) < 4 {
+			return 0, nil, false
+		}
+		tlen := int(uint16(a.b[0]) | uint16(a.b[1])<<8)
+		if tlen > maxL2capSDU || len(a.b)-4 > tlen {
+			return 0, nil, false
+		}
+		r.cid = uint16(a.b[2]) | uint16(a.b[3])<<8
+		r.tlen = tlen
+		r.buf = append(r.buf[:0], a.b[4:]...)
+		r.pending = true
+	}
+	if len(r.buf) != r.tlen {
+		return 0, nil, false
+	}
+	r.pending = false
+	return r.cid, append([]byte(nil), r.buf...), true
+}
+
+// loop must keep draining aclc until it is closed: handleL2CAP sends on it
+// from the HCI reader goroutine, so stopping early would stall all HCI input.
 func (c *conn) loop() {
 	defer close(c.datac)
+	var r reassembler
 	for a := range c.aclc {
-		if len(a.b) < 4 {
-			log.Printf("l2conn: short/corrupt packet, %v [% X]", a, a.b)
-			return
-		}
-		cid := uint16(a.b[2]) | (uint16(a.b[3]) << 8)
-		if cid == 5 {
-			c.handleSignal(a)
+		cid, sdu, ok := r.push(a)
+		if !ok || len(sdu) == 0 {
 			continue
 		}
-		b := make([]byte, 512)
-		tlen := int(uint16(a.b[0]) | uint16(a.b[1])<<8)
-		d := a.b[4:] // skip l2cap header
-		copy(b, d)
-		n := len(d)
-
-		// Keep receiving and reassemble continued l2cap segments
-		for n != tlen {
-			a, ok := <-c.aclc
-			if !ok || (a.flags&0x1) == 0 {
+		if cid == 5 {
+			err := c.handleSignal(sdu)
+			if err != nil {
+				log.Printf("l2conn: error with handleSignal: %v", err)
 				return
 			}
-			n += copy(b[n:], a.b)
+			continue
 		}
-		c.datac <- b[:n]
+		select {
+		case c.datac <- sdu:
+		default:
+			log.Printf("l2conn: 0x%04x receive queue full, dropping %d bytes", c.attr, len(sdu))
+		}
 	}
 }
 
@@ -192,8 +234,8 @@ func (c *conn) Close() error {
 // 0x14 LE Credit Based Connection request		0x0005
 // 0x15 LE Credit Based Connection response		0x0005
 // 0x16 LE Flow Control Credit					0x0005
-func (c *conn) handleSignal(a *aclData) error {
-	log.Printf("ignore l2cap signal:[ % X ]", a.b)
+func (c *conn) handleSignal(b []byte) error {
+	log.Printf("ignore l2cap signal:[ % X ]", b)
 	// FIXME: handle LE signaling channel (CID: 5)
 	return nil
 }
